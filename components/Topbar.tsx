@@ -8,21 +8,24 @@ export default function Topbar({
   onBack?: () => void;
 }) {
   return (
-    <header className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-gray-200">
-      <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-3">
-        {onBack ? (
-          <button
-            onClick={onBack}
-            className="px-3 py-2 rounded-lg border border-gray-200 text-sm"
-          >
-            ← Voltar
-          </button>
-        ) : (
-          <div className="w-[78px]" />
-        )}
+    <header className="sticky top-0 z-50 bg-blue-950 border-b border-white/10 px-4 py-3 flex items-center justify-between">
+      {onBack ? (
+        <button
+          onClick={onBack}
+          className="text-sm text-white/70 hover:text-white"
+        >
+          ← Voltar
+        </button>
+      ) : (
+        <div className="w-16" />
+      )}
 
-        <div className="flex-1 text-center font-semibold">{title}</div>
-        <div className="w-[78px]" />
+      <div className="text-center font-bold tracking-wide">
+        ✈️ COMTUR
+      </div>
+
+      <div className="w-16 text-right text-xs text-white/50">
+        EXP
       </div>
     </header>
   );
