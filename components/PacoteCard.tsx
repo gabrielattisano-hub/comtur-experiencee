@@ -1,7 +1,6 @@
-type Props = {
-  titulo: string;
-  descricao: string;
-  preco: string;
+import { Pacote } from "../lib/pacotes";
+
+type Props = Pacote & {
   onComprar: () => void;
 };
 
