@@ -1,4 +1,4 @@
-import BottomNav from "../components/BottomNav/index";
+import BottomNav from "@/components/BottomNav";
 
 export const metadata = {
   title: "COMTUR Experience",
