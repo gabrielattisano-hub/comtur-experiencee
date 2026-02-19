@@ -17,10 +17,8 @@ export default function Page() {
       {screen === "home" && (
         <>
           <Topbar title="COMTUR EXPERIENCE -- Londrina" />
-
           <main className="max-w-4xl mx-auto px-4 py-8">
             <h1 className="text-3xl font-bold mb-2">Sua viagem, com IA.</h1>
-
             <p className="text-white/80 mb-8">
               Compre pacotes, explore o mapa, traduza por voz/imagem e receba recomendações locais.
             </p>
@@ -44,7 +42,7 @@ export default function Page() {
                 onClick={() => setScreen("mapa")}
                 className="bg-white/10 border border-white/20 rounded-2xl p-4 font-semibold"
               >
-                🗺️ Mapa
+                🗺️ Mapa & Perto de Mim
               </button>
 
               <button
@@ -58,7 +56,7 @@ export default function Page() {
                 onClick={() => setScreen("feed")}
                 className="col-span-2 bg-white/10 border border-white/20 rounded-2xl p-4 font-semibold"
               >
-                📸 Feed
+                📸 Feed (Rede Social)
               </button>
             </div>
 
@@ -71,15 +69,43 @@ export default function Page() {
         </>
       )}
 
+      {/* PACOTES */}
+      {screen === "pacotes" && (
+        <>
+          <Topbar title="Pacotes" onBack={goHome} />
+          <main className="max-w-4xl mx-auto px-4 py-8 space-y-4">
+
+            <div className="p-4 rounded-2xl bg-white text-blue-900 shadow-lg">
+              <h2 className="font-bold text-lg">Foz do Iguaçu</h2>
+              <p className="text-sm">3 dias • Hotel + Passeios</p>
+              <p className="mt-2 font-semibold">R$ 1.299</p>
+
+              <button className="mt-3 w-full bg-blue-900 text-white py-2 rounded-xl">
+                Comprar agora
+              </button>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-white text-blue-900 shadow-lg">
+              <h2 className="font-bold text-lg">Olímpia</h2>
+              <p className="text-sm">Thermas + Resort</p>
+              <p className="mt-2 font-semibold">R$ 999</p>
+
+              <button className="mt-3 w-full bg-blue-900 text-white py-2 rounded-xl">
+                Comprar agora
+              </button>
+            </div>
+
+          </main>
+        </>
+      )}
+
       {/* OUTRAS TELAS */}
-      {screen !== "home" && (
+      {screen !== "home" && screen !== "pacotes" && (
         <>
           <Topbar
             title={
               screen === "login"
                 ? "Login"
-                : screen === "pacotes"
-                ? "Pacotes"
                 : screen === "mapa"
                 ? "Mapa"
                 : screen === "ia"
@@ -90,33 +116,11 @@ export default function Page() {
           />
 
           <main className="max-w-4xl mx-auto px-4 py-8">
-
-            {/* PACOTES */}
-            {screen === "pacotes" && (
-              <div className="space-y-4">
-                <div className="p-4 rounded-2xl bg-white text-blue-900">
-                  <h2 className="font-bold text-lg">Foz do Iguaçu</h2>
-                  <p className="text-sm">3 dias • Hotel + Passeios</p>
-                  <p className="mt-2 font-semibold">R$ 1.299</p>
-                </div>
-
-                <div className="p-4 rounded-2xl bg-white text-blue-900">
-                  <h2 className="font-bold text-lg">Balneário Camboriú</h2>
-                  <p className="text-sm">2 dias • Hotel frente mar</p>
-                  <p className="mt-2 font-semibold">R$ 999</p>
-                </div>
-              </div>
-            )}
-
-            {/* OUTRAS TELAS (placeholder) */}
-            {screen !== "pacotes" && (
-              <div className="p-4 rounded-2xl bg-white/10 border border-white/20">
-                <p className="text-white/90">
-                  Tela <b>{screen}</b> criada. Próximo passo: montar o conteúdo dessa tela.
-                </p>
-              </div>
-            )}
-
+            <div className="p-4 rounded-2xl bg-white/10 border border-white/20">
+              <p className="text-white/90">
+                Tela <b>{screen}</b> criada. Próximo passo: montar o conteúdo dessa tela.
+              </p>
+            </div>
           </main>
         </>
       )}
