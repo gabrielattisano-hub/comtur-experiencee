@@ -1,6 +1,4 @@
-import BottomNav from "@/components/BottomNav";
-
-export const metadata = {
+import BottomNav from "@/components/BottomNav";export const metadata = {
   title: "COMTUR Experience",
   description: "App completo de turismo com IA integrada",
 };
