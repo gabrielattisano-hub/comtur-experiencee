@@ -7,8 +7,10 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   const itemClass = (path: string) =>
-    `flex flex-col items-center text-xs ${
-      pathname === path ? "text-white" : "text-white/60"
+    `flex flex-col items-center text-xs transition ${
+      pathname === path
+        ? "text-white font-semibold"
+        : "text-white/60 hover:text-white"
     }`;
 
   return (
