@@ -1,4 +1,5 @@
-import Topbar from "@/components/Topbar";
+import "../globals.css";
+import Topbar from "../components/Topbar";
 
 export const metadata = {
   title: "COMTUR Experience",
