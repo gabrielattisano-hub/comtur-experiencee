@@ -12,12 +12,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt">
-      <body className="bg-gray-50 text-gray-900 pb-16">
-        {/* O Topbar será usado nas páginas individuais */}
-        {children}
-
-        {/* Bottom Navigation fixa */}
-        <BottomNav />
+      <body className="bg-black flex justify-center">
+        <div className="w-full max-w-md min-h-screen bg-gradient-to-b from-blue-900 to-slate-950 text-white relative pb-16">
+          {children}
+          <BottomNav />
+        </div>
       </body>
     </html>
   );
