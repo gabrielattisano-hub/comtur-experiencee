@@ -1,5 +1,5 @@
-import "../globals.css";
 import Topbar from "../components/Topbar";
+import BottomNav from "../components/BottomNav";
 
 export const metadata = {
   title: "COMTUR Experience",
@@ -13,9 +13,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="pt">
-      <body className="bg-gray-50 text-gray-900">
-        <Topbar />
+      <body className="bg-gray-50 text-gray-900 pb-16">
+        {/* O Topbar será usado nas páginas individuais */}
         {children}
+
+        {/* Bottom Navigation fixa */}
+        <BottomNav />
       </body>
     </html>
   );
