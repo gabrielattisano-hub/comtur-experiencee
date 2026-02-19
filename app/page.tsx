@@ -5,9 +5,31 @@ import Topbar from "../components/Topbar";
 
 type Screen = "home" | "login" | "pacotes" | "mapa" | "ia" | "feed";
 
+type Pacote = {
+  id: number;
+  titulo: string;
+  descricao: string;
+  preco: string;
+};
+
 export default function Page() {
   const [screen, setScreen] = useState<Screen>("home");
   const [mensagem, setMensagem] = useState("");
+
+  const pacotes: Pacote[] = [
+    {
+      id: 1,
+      titulo: "Foz do Iguaçu",
+      descricao: "3 dias • Hotel + Passeios",
+      preco: "R$ 1.299",
+    },
+    {
+      id: 2,
+      titulo: "Olímpia",
+      descricao: "Thermas + Resort",
+      preco: "R$ 999",
+    },
+  ];
 
   const goHome = () => {
     setScreen("home");
@@ -27,44 +49,12 @@ export default function Page() {
           <main className="max-w-4xl mx-auto px-4 py-8">
             <h1 className="text-3xl font-bold mb-2">Sua viagem, com IA.</h1>
 
-            <p className="text-white/80 mb-8">
-              Compre pacotes, explore o mapa, traduza por voz/imagem e receba recomendações locais.
-            </p>
-
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => setScreen("login")}
-                className="bg-white text-blue-900 rounded-2xl p-4 font-semibold"
-              >
-                🔐 Login
-              </button>
-
+            <div className="grid grid-cols-2 gap-3 mt-6">
               <button
                 onClick={() => setScreen("pacotes")}
-                className="bg-white/10 border border-white/20 rounded-2xl p-4 font-semibold"
+                className="bg-white text-blue-900 rounded-2xl p-4 font-semibold"
               >
                 🧳 Pacotes
-              </button>
-
-              <button
-                onClick={() => setScreen("mapa")}
-                className="bg-white/10 border border-white/20 rounded-2xl p-4 font-semibold"
-              >
-                🗺️ Mapa
-              </button>
-
-              <button
-                onClick={() => setScreen("ia")}
-                className="bg-white/10 border border-white/20 rounded-2xl p-4 font-semibold"
-              >
-                🤖 Assistente IA
-              </button>
-
-              <button
-                onClick={() => setScreen("feed")}
-                className="col-span-2 bg-white/10 border border-white/20 rounded-2xl p-4 font-semibold"
-              >
-                📸 Feed
               </button>
             </div>
           </main>
@@ -76,31 +66,23 @@ export default function Page() {
           <Topbar title="Pacotes" onBack={goHome} />
           <main className="max-w-4xl mx-auto px-4 py-8 space-y-4">
 
-            <div className="p-4 rounded-2xl bg-white text-blue-900 shadow-lg">
-              <h2 className="font-bold text-lg">Foz do Iguaçu</h2>
-              <p className="text-sm">3 dias • Hotel + Passeios</p>
-              <p className="mt-2 font-semibold">R$ 1.299</p>
-
-              <button
-                onClick={() => comprar("Foz do Iguaçu")}
-                className="mt-3 w-full bg-blue-900 text-white py-2 rounded-xl"
+            {pacotes.map((pacote) => (
+              <div
+                key={pacote.id}
+                className="p-4 rounded-2xl bg-white text-blue-900 shadow-lg"
               >
-                Comprar agora
-              </button>
-            </div>
+                <h2 className="font-bold text-lg">{pacote.titulo}</h2>
+                <p className="text-sm">{pacote.descricao}</p>
+                <p className="mt-2 font-semibold">{pacote.preco}</p>
 
-            <div className="p-4 rounded-2xl bg-white text-blue-900 shadow-lg">
-              <h2 className="font-bold text-lg">Olímpia</h2>
-              <p className="text-sm">Thermas + Resort</p>
-              <p className="mt-2 font-semibold">R$ 999</p>
-
-              <button
-                onClick={() => comprar("Olímpia")}
-                className="mt-3 w-full bg-blue-900 text-white py-2 rounded-xl"
-              >
-                Comprar agora
-              </button>
-            </div>
+                <button
+                  onClick={() => comprar(pacote.titulo)}
+                  className="mt-3 w-full bg-blue-900 text-white py-2 rounded-xl"
+                >
+                  Comprar agora
+                </button>
+              </div>
+            ))}
 
             {mensagem && (
               <div className="mt-4 p-4 bg-green-600 rounded-xl text-white">
@@ -108,31 +90,6 @@ export default function Page() {
               </div>
             )}
 
-          </main>
-        </>
-      )}
-
-      {screen !== "home" && screen !== "pacotes" && (
-        <>
-          <Topbar
-            title={
-              screen === "login"
-                ? "Login"
-                : screen === "mapa"
-                ? "Mapa"
-                : screen === "ia"
-                ? "Assistente IA"
-                : "Feed"
-            }
-            onBack={goHome}
-          />
-
-          <main className="max-w-4xl mx-auto px-4 py-8">
-            <div className="p-4 rounded-2xl bg-white/10 border border-white/20">
-              <p className="text-white/90">
-                Tela <b>{screen}</b> criada. Próximo passo: montar o conteúdo dessa tela.
-              </p>
-            </div>
           </main>
         </>
       )}
