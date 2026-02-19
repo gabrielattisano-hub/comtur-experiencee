@@ -12,20 +12,17 @@ export default function Page() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-900 to-slate-950 text-white">
-
-      {/* ================= HOME ================= */}
+      
+      {/* HOME */}
       {screen === "home" && (
         <>
           <Topbar title="COMTUR EXPERIENCE -- Londrina" />
 
           <main className="max-w-4xl mx-auto px-4 py-8">
-            <h1 className="text-3xl font-bold mb-2">
-              Sua viagem, com IA.
-            </h1>
+            <h1 className="text-3xl font-bold mb-2">Sua viagem, com IA.</h1>
 
             <p className="text-white/80 mb-8">
-              Compre pacotes, explore o mapa, traduza por voz/imagem
-              e receba recomendações locais inteligentes.
+              Compre pacotes, explore o mapa, traduza por voz/imagem e receba recomendações locais.
             </p>
 
             <div className="grid grid-cols-2 gap-3">
@@ -74,7 +71,7 @@ export default function Page() {
         </>
       )}
 
-      {/* ================= OUTRAS TELAS ================= */}
+      {/* OUTRAS TELAS */}
       {screen !== "home" && (
         <>
           <Topbar
@@ -93,15 +90,33 @@ export default function Page() {
           />
 
           <main className="max-w-4xl mx-auto px-4 py-8">
-            <div className="p-6 rounded-2xl bg-white/10 border border-white/20">
-              <h2 className="text-xl font-semibold mb-2">
-                Tela: {screen}
-              </h2>
 
-              <p className="text-white/80">
-                Aqui iremos montar o conteúdo completo dessa funcionalidade.
-              </p>
-            </div>
+            {/* PACOTES */}
+            {screen === "pacotes" && (
+              <div className="space-y-4">
+                <div className="p-4 rounded-2xl bg-white text-blue-900">
+                  <h2 className="font-bold text-lg">Foz do Iguaçu</h2>
+                  <p className="text-sm">3 dias • Hotel + Passeios</p>
+                  <p className="mt-2 font-semibold">R$ 1.299</p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white text-blue-900">
+                  <h2 className="font-bold text-lg">Balneário Camboriú</h2>
+                  <p className="text-sm">2 dias • Hotel frente mar</p>
+                  <p className="mt-2 font-semibold">R$ 999</p>
+                </div>
+              </div>
+            )}
+
+            {/* OUTRAS TELAS (placeholder) */}
+            {screen !== "pacotes" && (
+              <div className="p-4 rounded-2xl bg-white/10 border border-white/20">
+                <p className="text-white/90">
+                  Tela <b>{screen}</b> criada. Próximo passo: montar o conteúdo dessa tela.
+                </p>
+              </div>
+            )}
+
           </main>
         </>
       )}
