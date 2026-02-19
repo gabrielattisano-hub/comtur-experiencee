@@ -22,10 +22,10 @@ export default function HomePage() {
           </Link>
 
           <Link
-            href="#"
+            href="/assistente"
             className="bg-white/10 border border-white/20 rounded-2xl p-4 font-semibold text-center"
           >
-            🔐 Login
+            🤖 Assistente IA
           </Link>
         </div>
 
