@@ -11,47 +11,81 @@ function MapaContent() {
   const lat = useMemo(() => Number(searchParams.get("lat")), [searchParams]);
   const lng = useMemo(() => Number(searchParams.get("lng")), [searchParams]);
   const label = useMemo(
-    () => searchParams.get("label") ?? "Local",
+    () => searchParams.get("label") ?? "Mapa",
     [searchParams]
   );
 
-  // Se não vier lat/lng, mostra mensagem simples
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+  const ok = Number.isFinite(lat) && Number.isFinite(lng);
+
+  if (!ok) {
     return (
       <main style={{ padding: 16 }}>
         <h1>Mapa</h1>
-        <p>Faltou latitude e longitude na URL.</p>
+        <p>Faltou latitude/longitude na URL.</p>
+        <p style={{ opacity: 0.7 }}>Esperado: ?lat=...&lng=...&label=...</p>
       </main>
     );
   }
 
-  // Abre o Google Maps no navegador (sem app externo obrigatório)
-  const mapsUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+  // Link normal (abre fora)
+  const mapsLink =
+    `https://www.google.com/maps/search/?api=1` +
+    `&query=${lat},${lng}`;
+
+  // Embed simples (tenta abrir "dentro" da página via iframe)
+  // Obs: nem sempre iOS/Safari deixa 100% "app-like", mas funciona no navegador.
+  const embedSrc =
+    `https://www.google.com/maps?q=${lat},${lng}` +
+    `&z=16&output=embed`;
 
   return (
     <main style={{ padding: 16 }}>
       <h1 style={{ marginBottom: 8 }}>Mapa</h1>
+
       <p style={{ marginBottom: 12 }}>
         <strong>{label}</strong>
         <br />
         {lat.toFixed(6)}, {lng.toFixed(6)}
       </p>
 
-      <a
-        href={mapsUrl}
-        target="_blank"
-        rel="noreferrer"
+      <div
         style={{
-          display: "inline-block",
-          padding: "12px 16px",
-          borderRadius: 12,
+          width: "100%",
+          height: "70vh",
+          borderRadius: 14,
+          overflow: "hidden",
           border: "1px solid #ddd",
-          textDecoration: "none",
-          fontWeight: 600,
+          background: "#fff",
         }}
       >
-        Abrir no Google Maps
-      </a>
+        <iframe
+          title="Google Maps"
+          src={embedSrc}
+          width="100%"
+          height="100%"
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+          style={{ border: 0 }}
+        />
+      </div>
+
+      <div style={{ marginTop: 12 }}>
+        <a
+          href={mapsLink}
+          target="_blank"
+          rel="noreferrer"
+          style={{
+            display: "inline-block",
+            padding: "12px 16px",
+            borderRadius: 12,
+            border: "1px solid #ddd",
+            textDecoration: "none",
+            fontWeight: 600,
+          }}
+        >
+          Abrir no Google Maps (externo)
+        </a>
+      </div>
     </main>
   );
 }
