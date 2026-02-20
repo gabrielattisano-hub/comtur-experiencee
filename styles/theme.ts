@@ -1,8 +1,8 @@
 export const theme = {
   colors: {
-    primary: "#2563EB",        // azul principal
+    primary: "#2563EB",        // Azul principal
     primaryDark: "#1E40AF",
-    background: "#0F172A",     // fundo geral
+    background: "#0F172A",     // Fundo geral escuro premium
     card: "rgba(255,255,255,0.08)",
     border: "rgba(255,255,255,0.15)",
     text: "#FFFFFF",
