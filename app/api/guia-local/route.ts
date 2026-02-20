@@ -1,80 +1,54 @@
+import OpenAI from "openai";
+
 export const runtime = "nodejs";
 
-type Place = {
-  place_id: string;
-  name: string;
-  vicinity?: string;
-  rating?: number;
-  user_ratings_total?: number;
-  open_now?: boolean;
-};
-
-function pickTop(results: any[]): Place[] {
-  return (results || [])
-    .map((p) => ({
-      place_id: p.place_id,
-      name: p.name,
-      vicinity: p.vicinity,
-      rating: p.rating,
-      user_ratings_total: p.user_ratings_total,
-      open_now: p.opening_hours?.open_now,
-    }))
-    .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
-    .slice(0, 20);
-}
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const lat = Number(body?.lat);
-    const lng = Number(body?.lng);
-    const radius = Number(body?.radius ?? 2500);
-    const type = String(body?.type ?? "tourist_attraction");
 
-    const apiKey =
-      process.env.GOOGLE_MAPS_API_KEY ||
-      process.env.GOOGLE_PLACES_API_KEY;
+    const lat = body?.lat;
+    const lng = body?.lng;
+    const cidade = body?.cidade ?? "Londrina PR";
 
-    if (!apiKey) {
+    if (!process.env.OPENAI_API_KEY) {
       return Response.json(
-        {
-          error:
-            "Faltou configurar GOOGLE_MAPS_API_KEY (ou GOOGLE_PLACES_API_KEY) na Vercel.",
-        },
+        { error: "OPENAI_API_KEY não configurada" },
         { status: 500 }
       );
     }
 
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      return Response.json(
-        { error: "Envie { lat: number, lng: number } no body." },
-        { status: 400 }
-      );
-    }
+    const contextoLocal = lat && lng
+      ? `O usuário está aproximadamente na latitude ${lat} e longitude ${lng}.`
+      : `Cidade informada: ${cidade}.`;
 
-    const url =
-      `https://maps.googleapis.com/maps/api/place/nearbysearch/json` +
-      `?location=${lat},${lng}` +
-      `&radius=${radius}` +
-      `&type=${encodeURIComponent(type)}` +
-      `&key=${encodeURIComponent(apiKey)}`;
+    const prompt = `
+Você é o Guia Oficial da COMTUR EXPERIENCE.
 
-    const r = await fetch(url);
-    const data = await r.json();
+${contextoLocal}
 
-    if (data.status && data.status !== "OK") {
-      return Response.json(
-        { error: `Google Places: ${data.status}`, details: data.error_message },
-        { status: 500 }
-      );
-    }
+Sua missão:
+- Explicar brevemente onde o usuário está.
+- Contar curiosidades históricas ou culturais positivas.
+- Sugerir experiências familiares próximas.
+- Evitar qualquer menção a crimes, violência ou notícias negativas.
+- Estruturar resposta em tópicos claros.
+- Ser envolvente e amigável.
+`;
 
-    const results = pickTop(data.results);
+    const response = await client.responses.create({
+      model: "gpt-4o-mini",
+      input: [
+        { role: "system", content: prompt },
+        { role: "user", content: "Me explique onde estou e o que posso fazer aqui com minha família." }
+      ],
+    });
 
     return Response.json({
-      ok: true,
-      count: results.length,
-      results,
+      resposta: response.output_text,
     });
   } catch (err: any) {
     return Response.json(
