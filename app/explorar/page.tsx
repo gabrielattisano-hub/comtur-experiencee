@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Topbar from "../../components/Topbar";
 
@@ -24,11 +24,27 @@ type Place = {
   photo_url?: string;
 };
 
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371; // km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
 export default function ExplorarPage() {
   const router = useRouter();
   const [geo, setGeo] = useState<GeoState>({ status: "idle" });
 
-  const [places, setPlaces] = useState<Place[]>([]);
+  const [placesRaw, setPlacesRaw] = useState<Place[]>([]);
   const [placesStatus, setPlacesStatus] = useState<
     "idle" | "loading" | "error" | "ready"
   >("idle");
@@ -78,7 +94,7 @@ export default function ExplorarPage() {
       const res = await fetch("/api/places", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lat, lng, type: "restaurant" }),
+        body: JSON.stringify({ lat, lng, type: "restaurant", radius: 1500 }),
       });
 
       const data = await res.json();
@@ -89,7 +105,7 @@ export default function ExplorarPage() {
         return;
       }
 
-      setPlaces(Array.isArray(data?.results) ? data.results : []);
+      setPlacesRaw(Array.isArray(data?.results) ? data.results : []);
       setPlacesStatus("ready");
     } catch (e: any) {
       setPlacesStatus("error");
@@ -102,13 +118,51 @@ export default function ExplorarPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const places = useMemo(() => {
+    if (geo.status !== "ready") return placesRaw;
+
+    const userLat = geo.lat;
+    const userLng = geo.lng;
+
+    const withDistance = placesRaw.map((p) => {
+      const distanceKm =
+        typeof p.lat === "number" && typeof p.lng === "number"
+          ? haversineKm(userLat, userLng, p.lat, p.lng)
+          : null;
+
+      return { ...p, distanceKm };
+    });
+
+    // Ordenação inteligente:
+    // 1) abertos primeiro
+    // 2) menor distância
+    // 3) maior rating
+    // 4) mais avaliações
+    return withDistance.sort((a: any, b: any) => {
+      if (a.open_now === true && b.open_now !== true) return -1;
+      if (a.open_now !== true && b.open_now === true) return 1;
+
+      const da = a.distanceKm ?? 9999;
+      const db = b.distanceKm ?? 9999;
+      if (da !== db) return da - db;
+
+      const ra = a.rating ?? 0;
+      const rb = b.rating ?? 0;
+      if (ra !== rb) return rb - ra;
+
+      const ua = a.user_ratings_total ?? 0;
+      const ub = b.user_ratings_total ?? 0;
+      return ub - ua;
+    });
+  }, [geo, placesRaw]);
+
   function OpenBadge({ open }: { open?: boolean }) {
     if (open === true) return <span className="text-emerald-300">🟢 Aberto</span>;
     if (open === false) return <span className="text-red-300">🔴 Fechado</span>;
     return <span className="text-white/60">⏱</span>;
   }
 
-  function irParaMapaNoApp(place: Place) {
+  function irParaMapaNoApp(place: any) {
     if (!place.lat || !place.lng) return;
     const name = encodeURIComponent(place.name ?? "");
     router.push(`/mapa?lat=${place.lat}&lng=${place.lng}&name=${name}`);
@@ -126,24 +180,6 @@ export default function ExplorarPage() {
           📍 Atualizar localização
         </button>
 
-        {geo.status === "loading" && (
-          <div className="p-4 rounded-2xl bg-white/10 border border-white/20">
-            Obtendo localização...
-          </div>
-        )}
-
-        {geo.status === "denied" && (
-          <div className="p-4 rounded-2xl bg-white/10 border border-white/20">
-            Permissão negada. Ative a localização no navegador.
-          </div>
-        )}
-
-        {geo.status === "error" && (
-          <div className="p-4 rounded-2xl bg-white/10 border border-white/20">
-            Erro: {geo.message}
-          </div>
-        )}
-
         {placesStatus === "loading" && (
           <div className="p-4 rounded-2xl bg-white/10 border border-white/20">
             Buscando restaurantes próximos...
@@ -159,10 +195,10 @@ export default function ExplorarPage() {
         {placesStatus === "ready" && places.length > 0 && (
           <div className="space-y-3">
             <h2 className="text-lg font-semibold text-white">
-              🍽 Restaurantes próximos
+              🍽 Restaurantes próximos (ordenado por aberto + perto + nota)
             </h2>
 
-            {places.slice(0, 10).map((place) => (
+            {places.slice(0, 10).map((place: any) => (
               <div
                 key={place.place_id}
                 className="overflow-hidden rounded-2xl bg-white/10 border border-white/20"
@@ -193,13 +229,19 @@ export default function ExplorarPage() {
                     <div className="text-sm text-white/70">{place.vicinity}</div>
                   )}
 
-                  <div className="text-sm text-white/70">
-                    {typeof place.rating === "number" ? (
-                      <>
-                        ⭐ {place.rating} ({place.user_ratings_total ?? 0} avaliações)
-                      </>
-                    ) : (
-                      <>⭐ Sem avaliação</>
+                  <div className="flex items-center justify-between gap-3 text-sm text-white/70">
+                    <div>
+                      {typeof place.rating === "number" ? (
+                        <>
+                          ⭐ {place.rating} ({place.user_ratings_total ?? 0})
+                        </>
+                      ) : (
+                        <>⭐ Sem avaliação</>
+                      )}
+                    </div>
+
+                    {typeof place.distanceKm === "number" && (
+                      <div>📍 {place.distanceKm.toFixed(2)} km</div>
                     )}
                   </div>
 
