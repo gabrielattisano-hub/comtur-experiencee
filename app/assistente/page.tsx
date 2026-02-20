@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Topbar from "../../components/Topbar";
 
@@ -20,18 +20,64 @@ type Place = {
   open_now?: boolean;
 };
 
+function getMomentoDoDiaLabel(d: Date) {
+  const h = d.getHours();
+  if (h >= 7 && h < 11) return "Manhã";
+  if (h >= 11 && h < 14) return "Almoço";
+  if (h >= 14 && h < 18) return "Tarde";
+  if (h >= 18 && h < 22) return "Jantar";
+  return "Noite";
+}
+
+function Toggle({
+  label,
+  value,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={() => onChange(!value)}
+      className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl border transition
+        ${
+          value
+            ? "bg-emerald-400/20 border-emerald-400/40"
+            : "bg-white/10 border-white/20"
+        }
+        ${disabled ? "opacity-60" : "opacity-100"}
+      `}
+    >
+      <span className="text-white font-semibold">{label}</span>
+      <span className="text-white text-lg">{value ? "✅" : "⬜️"}</span>
+    </button>
+  );
+}
+
 export default function AssistentePage() {
   const router = useRouter();
 
   const [geo, setGeo] = useState<Geo>({ status: "idle" });
 
   const [pergunta, setPergunta] = useState(
-    "Estou com minha família em Londrina agora. O que você recomenda perto de mim para almoço?"
+    "Estou com minha família em Londrina agora. O que você recomenda perto de mim?"
   );
+
+  const [modoFamilia, setModoFamilia] = useState(true);
+  const [comCrianca, setComCrianca] = useState(false);
+  const [comIdoso, setComIdoso] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [resposta, setResposta] = useState("");
   const [erro, setErro] = useState("");
+
+  const momentoLabel = useMemo(() => getMomentoDoDiaLabel(new Date()), []);
 
   async function pegarLocalizacao() {
     if (!("geolocation" in navigator)) {
@@ -76,7 +122,7 @@ export default function AssistentePage() {
         lng = geo.lng;
       }
 
-      // 1) Busca lugares (se tiver geo)
+      // 1) Busca lugares próximos (se tiver geo)
       let lugares: Place[] = [];
       if (lat != null && lng != null) {
         const r = await fetch("/api/places", {
@@ -90,7 +136,7 @@ export default function AssistentePage() {
         }
       }
 
-      // 2) Envia para a IA com contexto
+      // 2) Envia contexto completo para a IA
       const agora = new Date().toLocaleString("pt-BR");
 
       const res = await fetch("/api/ai-contexto", {
@@ -102,6 +148,9 @@ export default function AssistentePage() {
           lng,
           agora,
           lugares,
+          modoFamilia,
+          comCrianca,
+          comIdoso,
         }),
       });
 
@@ -127,10 +176,10 @@ export default function AssistentePage() {
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-4">
         <div className="p-4 rounded-2xl bg-white/10 border border-white/20">
           <div className="font-semibold text-white">
-            IA com contexto (localização + horário)
+            IA com contexto (localização + horário + família)
           </div>
           <div className="text-sm text-white/70 mt-1">
-            A IA usa sua localização e os lugares próximos para recomendar melhor.
+            Momento detectado: <b>{momentoLabel}</b>
           </div>
 
           <button
@@ -142,7 +191,8 @@ export default function AssistentePage() {
 
           {geo.status === "ready" && (
             <div className="text-xs text-white/70 mt-2">
-              Localização ok ({geo.lat.toFixed(4)}, {geo.lng.toFixed(4)}) • {geo.at}
+              Localização ok ({geo.lat.toFixed(4)}, {geo.lng.toFixed(4)}) •{" "}
+              {geo.at}
             </div>
           )}
 
@@ -155,6 +205,32 @@ export default function AssistentePage() {
           {geo.status === "error" && (
             <div className="text-xs text-red-200 mt-2">{geo.message}</div>
           )}
+        </div>
+
+        <div className="grid gap-2">
+          <Toggle
+            label="Modo Família"
+            value={modoFamilia}
+            onChange={(v) => {
+              setModoFamilia(v);
+              if (!v) {
+                setComCrianca(false);
+                setComIdoso(false);
+              }
+            }}
+          />
+          <Toggle
+            label="Com criança pequena"
+            value={comCrianca}
+            onChange={setComCrianca}
+            disabled={!modoFamilia}
+          />
+          <Toggle
+            label="Com idoso"
+            value={comIdoso}
+            onChange={setComIdoso}
+            disabled={!modoFamilia}
+          />
         </div>
 
         <div className="p-4 rounded-2xl bg-white/10 border border-white/20 space-y-3">
