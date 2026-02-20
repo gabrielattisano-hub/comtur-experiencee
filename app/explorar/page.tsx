@@ -40,6 +40,51 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
   return R * c;
 }
 
+function Chip({
+  children,
+  tone = "neutral",
+}: {
+  children: React.ReactNode;
+  tone?: "neutral" | "good" | "bad" | "info";
+}) {
+  const cls =
+    tone === "good"
+      ? "bg-emerald-400/15 text-emerald-200 border-emerald-400/30"
+      : tone === "bad"
+      ? "bg-red-400/15 text-red-200 border-red-400/30"
+      : tone === "info"
+      ? "bg-blue-400/15 text-blue-200 border-blue-400/30"
+      : "bg-white/10 text-white/80 border-white/20";
+
+  return (
+    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs border ${cls}`}>
+      {children}
+    </span>
+  );
+}
+
+function SkeletonCard() {
+  return (
+    <div className="overflow-hidden rounded-2xl bg-white/10 border border-white/15 shadow-xl">
+      <div className="w-full h-44 bg-white/10 animate-pulse" />
+      <div className="p-4 space-y-3">
+        <div className="h-4 w-2/3 bg-white/10 rounded animate-pulse" />
+        <div className="h-3 w-1/2 bg-white/10 rounded animate-pulse" />
+        <div className="flex gap-2">
+          <div className="h-6 w-16 bg-white/10 rounded-full animate-pulse" />
+          <div className="h-6 w-20 bg-white/10 rounded-full animate-pulse" />
+          <div className="h-6 w-24 bg-white/10 rounded-full animate-pulse" />
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="h-10 bg-white/10 rounded-xl animate-pulse" />
+          <div className="h-10 bg-white/10 rounded-xl animate-pulse" />
+          <div className="h-10 bg-white/10 rounded-xl animate-pulse" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ExplorarPage() {
   const router = useRouter();
   const [geo, setGeo] = useState<GeoState>({ status: "idle" });
@@ -150,11 +195,17 @@ export default function ExplorarPage() {
     });
   }, [geo, placesRaw]);
 
-  function OpenBadge({ open }: { open?: boolean }) {
-    if (open === true) return <span className="text-emerald-300">🟢 Aberto</span>;
-    if (open === false) return <span className="text-red-300">🔴 Fechado</span>;
-    return <span className="text-white/60">⏱</span>;
-  }
+  const bestRatedId = useMemo(() => {
+    const best = [...places].sort((a: any, b: any) => (b.rating ?? 0) - (a.rating ?? 0))[0];
+    return best?.place_id;
+  }, [places]);
+
+  const nearestId = useMemo(() => {
+    const near = [...places]
+      .filter((p: any) => typeof p.distanceKm === "number")
+      .sort((a: any, b: any) => (a.distanceKm ?? 9999) - (b.distanceKm ?? 9999))[0];
+    return near?.place_id;
+  }, [places]);
 
   function irParaMapaNoApp(place: any) {
     if (!place.lat || !place.lng) return;
@@ -167,7 +218,6 @@ export default function ExplorarPage() {
     if (!place.lat || !place.lng) return;
 
     const toName = encodeURIComponent(place.name ?? "Destino");
-
     router.push(
       `/rota?fromLat=${geo.lat}&fromLng=${geo.lng}&toLat=${place.lat}&toLng=${place.lng}&toName=${toName}`
     );
@@ -175,19 +225,37 @@ export default function ExplorarPage() {
 
   return (
     <div className="min-h-screen">
-      <Topbar title="Explorar (Perto de Mim)" onBack={() => router.back()} />
+      <Topbar title="Explorar" onBack={() => router.back()} />
 
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-4">
-        <button
-          onClick={pegarLocalizacao}
-          className="w-full bg-white text-blue-900 py-3 rounded-2xl font-semibold"
-        >
-          📍 Atualizar localização
-        </button>
+        <div className="p-4 rounded-2xl bg-white/10 border border-white/15 shadow-xl">
+          <div className="text-xl font-semibold">Perto de você agora</div>
+          <div className="text-sm text-white/70 mt-1">
+            Sugestões para famílias em Londrina -- aberto, perto e bem avaliado.
+          </div>
+
+          <button
+            onClick={pegarLocalizacao}
+            className="mt-4 w-full bg-white text-blue-900 py-3 rounded-2xl font-semibold"
+          >
+            📍 Atualizar localização
+          </button>
+
+          {geo.status === "denied" && (
+            <div className="text-sm text-red-200 mt-3">
+              Permissão de localização negada. Ative no navegador.
+            </div>
+          )}
+          {geo.status === "error" && (
+            <div className="text-sm text-red-200 mt-3">Erro: {geo.message}</div>
+          )}
+        </div>
 
         {placesStatus === "loading" && (
-          <div className="p-4 rounded-2xl bg-white/10 border border-white/20">
-            Buscando restaurantes próximos...
+          <div className="grid gap-3">
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
           </div>
         )}
 
@@ -198,15 +266,11 @@ export default function ExplorarPage() {
         )}
 
         {placesStatus === "ready" && places.length > 0 && (
-          <div className="space-y-3">
-            <h2 className="text-lg font-semibold text-white">
-              🍽 Restaurantes próximos
-            </h2>
-
+          <div className="grid gap-3">
             {places.slice(0, 10).map((place: any) => (
               <div
                 key={place.place_id}
-                className="overflow-hidden rounded-2xl bg-white/10 border border-white/20"
+                className="overflow-hidden rounded-2xl bg-white/10 border border-white/15 shadow-xl"
               >
                 {place.photo_url ? (
                   <div className="w-full h-44 bg-black/20">
@@ -218,15 +282,22 @@ export default function ExplorarPage() {
                       loading="lazy"
                     />
                   </div>
-                ) : null}
+                ) : (
+                  <div className="w-full h-44 bg-white/5 flex items-center justify-center text-white/60 text-sm">
+                    Sem foto
+                  </div>
+                )}
 
-                <div className="p-4 space-y-2">
+                <div className="p-4 space-y-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="font-semibold text-white text-lg leading-tight">
                       {place.name}
                     </div>
-                    <div className="text-sm whitespace-nowrap">
-                      <OpenBadge open={place.open_now} />
+                    <div className="flex gap-2 flex-wrap justify-end">
+                      {place.open_now === true && <Chip tone="good">🟢 Aberto</Chip>}
+                      {place.open_now === false && <Chip tone="bad">🔴 Fechado</Chip>}
+                      {place.place_id === nearestId && <Chip tone="info">📍 Mais perto</Chip>}
+                      {place.place_id === bestRatedId && <Chip tone="info">🏆 Melhor nota</Chip>}
                     </div>
                   </div>
 
@@ -250,7 +321,7 @@ export default function ExplorarPage() {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 pt-2">
+                  <div className="grid grid-cols-3 gap-2">
                     <button
                       onClick={() => irParaMapaNoApp(place)}
                       className="bg-white text-blue-900 px-3 py-2 rounded-xl font-semibold"
@@ -282,7 +353,7 @@ export default function ExplorarPage() {
                   </div>
 
                   {geo.status !== "ready" && (
-                    <div className="text-xs text-white/60 pt-1">
+                    <div className="text-xs text-white/60">
                       Ative a localização para traçar rotas.
                     </div>
                   )}
