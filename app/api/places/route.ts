@@ -9,15 +9,15 @@ type Place = {
   open_now?: boolean;
 };
 
-function pickTopRestaurants(results: any[]): Place[] {
-  return (results || [])
+function pickTopRestaurantsV1(places: any[]): Place[] {
+  return (places || [])
     .map((p) => ({
-      place_id: p.place_id,
-      name: p.name,
-      vicinity: p.vicinity,
+      place_id: p.id, // v1 usa "id"
+      name: p.displayName?.text ?? "Sem nome",
+      vicinity: p.formattedAddress, // mais próximo do "vicinity"
       rating: p.rating,
-      user_ratings_total: p.user_ratings_total,
-      open_now: p.opening_hours?.open_now,
+      user_ratings_total: p.userRatingCount,
+      open_now: p.currentOpeningHours?.openNow,
     }))
     .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
     .slice(0, 10);
@@ -30,11 +30,14 @@ export async function POST(req: Request) {
     const lng = Number(body?.lng);
 
     const apiKey =
-      process.env.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_PLACES_API_KEY;
+      process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_MAPS_API_KEY;
 
     if (!apiKey) {
       return Response.json(
-        { error: "Faltou configurar GOOGLE_MAPS_API_KEY (ou GOOGLE_PLACES_API_KEY) na Vercel." },
+        {
+          error:
+            "Faltou configurar GOOGLE_PLACES_API_KEY (ou GOOGLE_MAPS_API_KEY) na Vercel.",
+        },
         { status: 500 }
       );
     }
@@ -47,27 +50,46 @@ export async function POST(req: Request) {
     }
 
     const radius = Number(body?.radius ?? 1500); // metros
-    const type = String(body?.type ?? "restaurant");
 
-    // Places API (Nearby Search)
-    const url =
-      `https://maps.googleapis.com/maps/api/place/nearbysearch/json` +
-      `?location=${lat},${lng}` +
-      `&radius=${radius}` +
-      `&type=${encodeURIComponent(type)}` +
-      `&key=${encodeURIComponent(apiKey)}`;
+    // Places API (New) - Nearby Search (v1)
+    const url = "https://places.googleapis.com/v1/places:searchNearby";
 
-    const r = await fetch(url, { method: "GET" });
+    const payload = {
+      includedTypes: ["restaurant"],
+      maxResultCount: 10,
+      locationRestriction: {
+        circle: {
+          center: { latitude: lat, longitude: lng },
+          radius,
+        },
+      },
+    };
+
+    const r = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": apiKey,
+        // FieldMask é obrigatório na v1
+        "X-Goog-FieldMask":
+          "places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.currentOpeningHours.openNow",
+      },
+      body: JSON.stringify(payload),
+    });
+
     const data = await r.json();
 
-    if (data.status && data.status !== "OK") {
+    if (!r.ok) {
       return Response.json(
-        { error: `Google Places: ${data.status}`, details: data.error_message },
+        {
+          error: "Google Places (v1) falhou",
+          details: data?.error?.message ?? data,
+        },
         { status: 500 }
       );
     }
 
-    const top = pickTopRestaurants(data.results);
+    const top = pickTopRestaurantsV1(data.places);
 
     return Response.json({
       ok: true,
