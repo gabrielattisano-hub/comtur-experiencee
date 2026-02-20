@@ -49,7 +49,6 @@ export default function ExplorarPage() {
 
         setGeo({ status: "ready", lat, lng, accuracy, at });
 
-        // 🔥 BUSCA RESTAURANTES AUTOMATICAMENTE
         buscarRestaurantes(lat, lng);
       },
       (err) => {
@@ -71,9 +70,18 @@ export default function ExplorarPage() {
       setPlacesStatus("loading");
       setPlacesError("");
 
-      const res = await fetch(
-        `/api/places?lat=${lat}&lng=${lng}&type=restaurant`
-      );
+      // ✅ CORREÇÃO AQUI — AGORA USA POST
+      const res = await fetch("/api/places", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          lat,
+          lng,
+          type: "restaurant",
+        }),
+      });
 
       const data = await res.json();
 
