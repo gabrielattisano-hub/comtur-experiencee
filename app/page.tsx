@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import Card from "@/components/Card";
-import { theme } from "@/styles/theme";
+import Button from "@/components/Button";
 
 export default function HomePage() {
   return (
@@ -31,33 +30,21 @@ export default function HomePage() {
       </Card>
 
       {/* BOTÕES PRINCIPAIS */}
-      <Link href="/explorar" style={buttonStyle}>
+      <Button href="/explorar">
         📍 Explorar perto de mim
-      </Link>
+      </Button>
 
-      <Link href="/guia-local" style={buttonStyle}>
+      <Button href="/guia-local">
         🤖 Guia inteligente
-      </Link>
+      </Button>
 
-      <Link href="/pacotes" style={buttonStyle}>
+      <Button href="/pacotes">
         🎒 Pacotes recomendados
-      </Link>
+      </Button>
 
-      <Link href="/roteiros" style={buttonStyle}>
+      <Button href="/roteiros">
         💾 Meus roteiros
-      </Link>
+      </Button>
     </main>
   );
 }
-
-const buttonStyle: React.CSSProperties = {
-  display: "block",
-  padding: "18px",
-  borderRadius: theme.radius.lg,
-  background: theme.colors.primary,
-  color: "#fff",
-  textDecoration: "none",
-  textAlign: "center",
-  fontWeight: 600,
-  fontSize: 16,
-};
