@@ -1,144 +1,94 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { montarContextoFamilias } from "@/lib/contexto";
-import { getPreferencias } from "@/lib/preferencias";
+import { useEffect, useState } from "react";
+import Topbar from "@/components/Topbar";
 
-type Place = {
-  place_id: string;
-  name: string;
-  vicinity?: string;
-  rating?: number;
-  user_ratings_total?: number;
+type Preferencias = {
+  comCriancas?: boolean;
+  acessibilidade?: boolean;
+  evitarCheio?: boolean;
+  obs?: string;
 };
 
-type GeoState =
-  | { status: "idle" }
-  | { status: "loading" }
-  | { status: "denied" }
-  | { status: "error"; message: string }
-  | { status: "ready"; lat: number; lng: number; accuracy?: number; at: string };
+type Localizacao = {
+  lat: number;
+  lng: number;
+  accuracy?: number;
+};
 
-function sugestaoPorHorario(): string {
-  const h = new Date().getHours();
-  if (h >= 6 && h <= 10) {
-    return "Estou com a família e quero uma sugestão de café da manhã perto de mim. Recomende 3 opções com ambiente tranquilo e bom custo-benefício.";
+const PREF_KEY = "comtur_preferencias_v1";
+
+function loadPreferencias(): Preferencias {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(PREF_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
   }
-  if (h >= 11 && h <= 14) {
-    return "É hora do almoço e estou com crianças. Recomende 3 restaurantes perto de mim com boa avaliação e pratos que agradam família.";
-  }
-  if (h >= 15 && h <= 18) {
-    return "Quero um passeio leve com a família agora à tarde. Sugira 3 ideias perto de mim (parque, praça, atração tranquila).";
-  }
-  return "Quero uma sugestão para o início da noite com a família. Recomende 3 lugares perto de mim (jantar, sobremesa ou passeio) e explique rapidamente.";
 }
 
 export default function AssistentePage() {
   const [pergunta, setPergunta] = useState("");
   const [resposta, setResposta] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">(
-    "idle"
-  );
+  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [erro, setErro] = useState("");
 
-  const [lugares, setLugares] = useState<Place[]>([]);
-  const [lugaresStatus, setLugaresStatus] = useState<
-    "idle" | "loading" | "ready" | "error"
+  const [preferencias, setPreferencias] = useState<Preferencias>({});
+  const [localizacao, setLocalizacao] = useState<Localizacao | null>(null);
+  const [geoStatus, setGeoStatus] = useState<
+    "idle" | "loading" | "denied" | "ready" | "error"
   >("idle");
 
-  const [geo, setGeo] = useState<GeoState>({ status: "idle" });
+  useEffect(() => {
+    setPreferencias(loadPreferencias());
+    pegarLocalizacao(); // tenta automaticamente
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const fallbackCoords = useMemo(() => ({ lat: -23.3045, lng: -51.1696 }), []);
-
-  async function carregarRestaurantes(lat: number, lng: number) {
-    try {
-      setLugaresStatus("loading");
-
-      const res = await fetch("/api/places", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          lat,
-          lng,
-          type: "restaurant",
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setLugaresStatus("error");
-        return;
-      }
-
-      setLugares(Array.isArray(data?.results) ? data.results : []);
-      setLugaresStatus("ready");
-    } catch {
-      setLugaresStatus("error");
-    }
-  }
-
-  async function usarMinhaLocalizacao() {
+  function pegarLocalizacao() {
     if (!("geolocation" in navigator)) {
-      setGeo({
-        status: "error",
-        message: "Seu navegador não suporta geolocalização.",
-      });
+      setGeoStatus("error");
       return;
     }
 
-    setGeo({ status: "loading" });
+    setGeoStatus("loading");
 
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        const accuracy = pos.coords.accuracy;
-        const at = new Date().toLocaleString("pt-BR");
-
-        setGeo({ status: "ready", lat, lng, accuracy, at });
-
-        carregarRestaurantes(lat, lng);
+        setLocalizacao({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+        });
+        setGeoStatus("ready");
       },
       (err) => {
-        if (err.code === err.PERMISSION_DENIED) {
-          setGeo({ status: "denied" });
-        } else {
-          setGeo({
-            status: "error",
-            message: err.message || "Erro ao obter localização.",
-          });
-        }
+        if (err.code === err.PERMISSION_DENIED) setGeoStatus("denied");
+        else setGeoStatus("error");
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   }
 
-  useEffect(() => {
-    carregarRestaurantes(fallbackCoords.lat, fallbackCoords.lng);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  async function enviar() {
+    const p = pergunta.trim();
+    if (!p) return;
 
-  async function enviar(texto?: string) {
+    setStatus("loading");
+    setErro("");
+    setResposta("");
+
     try {
-      const perguntaFinal = (texto ?? pergunta).trim();
-      if (!perguntaFinal) return;
-
-      setStatus("loading");
-      setErro("");
-      setResposta("");
-
-      const contexto = montarContextoFamilias();
-      const preferencias = getPreferencias();
-
-      const res = await fetch("/api/ai-contexto", {
+      const res = await fetch("/api/assistente", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pergunta: perguntaFinal,
-          contexto,
+          pergunta: p,
           preferencias,
-          lugares: lugares.slice(0, 10),
+          localizacao,
         }),
       });
 
@@ -146,91 +96,136 @@ export default function AssistentePage() {
 
       if (!res.ok) {
         setStatus("error");
-        setErro(data?.error || "Erro ao chamar IA.");
+        setErro(data?.error || "Erro ao chamar a IA.");
         return;
       }
 
-      setResposta(data?.resposta || "");
-      setStatus("ready");
+      setResposta(data?.resposta || "Sem resposta.");
+      setStatus("idle");
     } catch (e: any) {
       setStatus("error");
       setErro(e?.message || "Erro inesperado.");
     }
   }
 
+  function perguntaRapida(texto: string) {
+    setPergunta(texto);
+    setTimeout(() => enviar(), 50);
+  }
+
   return (
-    <main className="max-w-4xl mx-auto px-4 py-6 space-y-4">
-      <div className="p-5 rounded-3xl bg-white/10 border border-white/20">
-        <h1 className="text-2xl font-bold text-white">🤖 Assistente IA</h1>
-        <p className="text-white/70 mt-1">
-          Sugestões automáticas por horário + recomendações para famílias.
-        </p>
-      </div>
+    <div className="min-h-screen">
+      <Topbar title="Assistente IA" />
 
-      {/* Sugestões rápidas */}
-      <div className="p-5 rounded-3xl bg-white/10 border border-white/20 space-y-3">
-        <div className="text-white font-semibold">⚡ Sugestões rápidas</div>
+      <main className="max-w-4xl mx-auto px-4 py-6 space-y-4">
+        <div className="p-5 rounded-3xl bg-white/10 border border-white/20">
+          <h1 className="text-2xl font-bold text-white">🤖 Assistente COMTUR</h1>
+          <p className="text-white/70 mt-1">
+            A IA usa <b>preferências</b> + <b>horário</b> + <b>localização</b>{" "}
+            (se permitida) para recomendar experiências para famílias.
+          </p>
 
-        <button
-          onClick={() => enviar(sugestaoPorHorario())}
-          className="w-full bg-white text-blue-900 py-3 rounded-2xl font-semibold"
-        >
-          🎯 Me sugira algo agora (por horário)
-        </button>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <span className="px-2 py-1 rounded-full bg-white/10 border border-white/15 text-xs text-white/80">
+              Preferências: {Object.keys(preferencias).length ? "OK" : "vazio"}
+            </span>
+            <span className="px-2 py-1 rounded-full bg-white/10 border border-white/15 text-xs text-white/80">
+              Localização:{" "}
+              {geoStatus === "ready"
+                ? "OK"
+                : geoStatus === "denied"
+                ? "negada"
+                : geoStatus}
+            </span>
+          </div>
 
-        <button
-          onClick={usarMinhaLocalizacao}
-          className="w-full bg-white/10 border border-white/20 py-3 rounded-2xl font-semibold text-white"
-        >
-          📍 Usar minha localização
-        </button>
+          <button
+            onClick={pegarLocalizacao}
+            className="mt-3 w-full bg-white/10 border border-white/20 py-3 rounded-2xl font-semibold text-white"
+          >
+            📍 Atualizar localização
+          </button>
+        </div>
 
-        {geo.status === "denied" && (
-          <div className="text-sm text-white/70">
-            Permissão negada. Ative a localização no navegador.
+        {/* Ações rápidas */}
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() =>
+              perguntaRapida(
+                "Monte um roteiro de 3 horas para família perto de mim, com almoço e um passeio tranquilo."
+              )
+            }
+            className="bg-white/10 border border-white/20 rounded-2xl p-3 font-semibold text-white text-sm"
+          >
+            ⏱ Roteiro 3h
+          </button>
+
+          <button
+            onClick={() =>
+              perguntaRapida(
+                "Sugira 5 restaurantes bem avaliados para almoço em família e o que pedir em cada um."
+              )
+            }
+            className="bg-white/10 border border-white/20 rounded-2xl p-3 font-semibold text-white text-sm"
+          >
+            🍽 Almoço
+          </button>
+
+          <button
+            onClick={() =>
+              perguntaRapida(
+                "Quero um passeio econômico para hoje com criança, evitando lugares muito cheios."
+              )
+            }
+            className="bg-white/10 border border-white/20 rounded-2xl p-3 font-semibold text-white text-sm"
+          >
+            💸 Econômico
+          </button>
+
+          <button
+            onClick={() =>
+              perguntaRapida(
+                "Crie um roteiro premium em Londrina para família, com experiências marcantes e horários."
+              )
+            }
+            className="bg-white/10 border border-white/20 rounded-2xl p-3 font-semibold text-white text-sm"
+          >
+            ✨ Premium
+          </button>
+        </div>
+
+        {/* Input */}
+        <div className="p-5 rounded-3xl bg-white/10 border border-white/20 space-y-3">
+          <textarea
+            value={pergunta}
+            onChange={(e) => setPergunta(e.target.value)}
+            placeholder="Digite sua pergunta... Ex: Estou na Rua Sergipe e quero um almoço com criança + passeio."
+            className="w-full min-h-[120px] p-3 rounded-2xl bg-black/30 border border-white/10 text-white outline-none"
+          />
+
+          <button
+            onClick={enviar}
+            disabled={status === "loading"}
+            className="w-full bg-yellow-400 text-slate-900 py-3 rounded-2xl font-semibold disabled:opacity-60"
+          >
+            {status === "loading" ? "Pensando..." : "Enviar para IA"}
+          </button>
+
+          {status === "error" && (
+            <div className="p-4 rounded-2xl bg-red-500/20 border border-red-400/30 text-white">
+              Erro: {erro}
+            </div>
+          )}
+        </div>
+
+        {/* Resposta */}
+        {resposta && (
+          <div className="p-5 rounded-3xl bg-white/10 border border-white/20">
+            <div className="text-white font-semibold mb-2">Resposta</div>
+            <div className="text-white/90 whitespace-pre-wrap">{resposta}</div>
           </div>
         )}
-        {geo.status === "error" && (
-          <div className="text-sm text-white/70">Erro: {geo.message}</div>
-        )}
-
-        <div className="text-xs text-white/60">
-          Restaurantes carregados:{" "}
-          {lugaresStatus === "ready" ? lugares.length : lugaresStatus}
-        </div>
-      </div>
-
-      {/* Pergunta manual */}
-      <div className="p-5 rounded-3xl bg-white/10 border border-white/20 space-y-3">
-        <div className="text-white font-semibold">✍️ Perguntar manualmente</div>
-
-        <textarea
-          value={pergunta}
-          onChange={(e) => setPergunta(e.target.value)}
-          placeholder="Ex: Estou com crianças e é hora do almoço. O que você recomenda perto de mim?"
-          className="w-full min-h-[110px] p-3 rounded-2xl bg-black/30 border border-white/10 text-white outline-none"
-        />
-
-        <button
-          onClick={() => enviar()}
-          disabled={!pergunta || status === "loading"}
-          className="w-full bg-white text-blue-900 py-3 rounded-2xl font-semibold disabled:opacity-60"
-        >
-          {status === "loading" ? "Pensando..." : "Enviar"}
-        </button>
-      </div>
-
-      {status === "error" && (
-        <div className="p-4 rounded-2xl bg-white/10 border border-white/20 text-white/80">
-          <b>Erro:</b> {erro}
-        </div>
-      )}
-
-      {resposta && (
-        <div className="p-5 rounded-3xl bg-white/10 border border-white/20 text-white whitespace-pre-wrap">
-          {resposta}
-        </div>
-      )}
-    </main>
+      </main>
+    </div>
   );
 }
