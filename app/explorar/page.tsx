@@ -25,7 +25,7 @@ type Place = {
 };
 
 function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
-  const R = 6371; // km
+  const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
 
@@ -69,7 +69,6 @@ export default function ExplorarPage() {
         const at = new Date().toLocaleString("pt-BR");
 
         setGeo({ status: "ready", lat, lng, accuracy, at });
-
         buscarRestaurantes(lat, lng);
       },
       (err) => {
@@ -133,11 +132,6 @@ export default function ExplorarPage() {
       return { ...p, distanceKm };
     });
 
-    // Ordenação inteligente:
-    // 1) abertos primeiro
-    // 2) menor distância
-    // 3) maior rating
-    // 4) mais avaliações
     return withDistance.sort((a: any, b: any) => {
       if (a.open_now === true && b.open_now !== true) return -1;
       if (a.open_now !== true && b.open_now === true) return 1;
@@ -168,6 +162,17 @@ export default function ExplorarPage() {
     router.push(`/mapa?lat=${place.lat}&lng=${place.lng}&name=${name}`);
   }
 
+  function tracarRota(place: any) {
+    if (geo.status !== "ready") return;
+    if (!place.lat || !place.lng) return;
+
+    const toName = encodeURIComponent(place.name ?? "Destino");
+
+    router.push(
+      `/rota?fromLat=${geo.lat}&fromLng=${geo.lng}&toLat=${place.lat}&toLng=${place.lng}&toName=${toName}`
+    );
+  }
+
   return (
     <div className="min-h-screen">
       <Topbar title="Explorar (Perto de Mim)" onBack={() => router.back()} />
@@ -195,7 +200,7 @@ export default function ExplorarPage() {
         {placesStatus === "ready" && places.length > 0 && (
           <div className="space-y-3">
             <h2 className="text-lg font-semibold text-white">
-              🍽 Restaurantes próximos (ordenado por aberto + perto + nota)
+              🍽 Restaurantes próximos
             </h2>
 
             {places.slice(0, 10).map((place: any) => (
@@ -245,13 +250,21 @@ export default function ExplorarPage() {
                     )}
                   </div>
 
-                  <div className="flex gap-2 pt-2">
+                  <div className="grid grid-cols-3 gap-2 pt-2">
                     <button
                       onClick={() => irParaMapaNoApp(place)}
-                      className="flex-1 bg-white text-blue-900 px-3 py-2 rounded-xl font-semibold"
+                      className="bg-white text-blue-900 px-3 py-2 rounded-xl font-semibold"
                       disabled={!place.lat || !place.lng}
                     >
-                      🗺 Mapa no app
+                      🗺 Mapa
+                    </button>
+
+                    <button
+                      onClick={() => tracarRota(place)}
+                      className="bg-emerald-400 text-emerald-950 px-3 py-2 rounded-xl font-semibold"
+                      disabled={geo.status !== "ready" || !place.lat || !place.lng}
+                    >
+                      🚗 Rota
                     </button>
 
                     {place.maps_url ? (
@@ -259,12 +272,20 @@ export default function ExplorarPage() {
                         href={place.maps_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex-1 text-center bg-white/10 border border-white/20 text-white px-3 py-2 rounded-xl font-semibold"
+                        className="text-center bg-white/10 border border-white/20 text-white px-3 py-2 rounded-xl font-semibold"
                       >
                         ↗ Externo
                       </a>
-                    ) : null}
+                    ) : (
+                      <div className="bg-white/5 border border-white/10 rounded-xl" />
+                    )}
                   </div>
+
+                  {geo.status !== "ready" && (
+                    <div className="text-xs text-white/60 pt-1">
+                      Ative a localização para traçar rotas.
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
