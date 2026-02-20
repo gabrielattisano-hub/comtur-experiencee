@@ -23,14 +23,11 @@ function pickTopRestaurants(results: any[]): Place[] {
     .slice(0, 10);
 }
 
-export async function GET(req: Request) {
+export async function POST(req: Request) {
   try {
-    const { searchParams } = new URL(req.url);
-
-    const lat = Number(searchParams.get("lat"));
-    const lng = Number(searchParams.get("lng"));
-    const radius = Number(searchParams.get("radius") ?? 1500); // metros
-    const type = String(searchParams.get("type") ?? "restaurant");
+    const body = await req.json();
+    const lat = Number(body?.lat);
+    const lng = Number(body?.lng);
 
     const apiKey =
       process.env.GOOGLE_MAPS_API_KEY || process.env.GOOGLE_PLACES_API_KEY;
@@ -47,12 +44,14 @@ export async function GET(req: Request) {
 
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
       return Response.json(
-        { error: "Envie lat e lng na query: /api/places?lat=...&lng=..." },
+        { error: "Envie { lat: number, lng: number } no body." },
         { status: 400 }
       );
     }
 
-    // Places API (antiga) - Nearby Search
+    const radius = Number(body?.radius ?? 1500); // metros
+    const type = String(body?.type ?? "restaurant");
+
     const url =
       `https://maps.googleapis.com/maps/api/place/nearbysearch/json` +
       `?location=${lat},${lng}` +
