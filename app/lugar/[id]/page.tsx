@@ -2,9 +2,10 @@ export const dynamic = "force-dynamic";
 
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { FavPlace, isFavorito, toggleFavorito } from "@/lib/favoritos";
 
 type PlaceDetails = {
   place_id: string;
@@ -12,7 +13,6 @@ type PlaceDetails = {
   vicinity?: string;
   rating?: number;
   user_ratings_total?: number;
-  open_now?: boolean;
 };
 
 function LugarInner() {
@@ -22,7 +22,6 @@ function LugarInner() {
 
   const id = params?.id ? String(params.id) : "";
 
-  // opcional: recebemos name/vicinity via query (para não precisar de outra API agora)
   const name = sp.get("name") ?? "";
   const vicinity = sp.get("vicinity") ?? "";
   const rating = sp.get("rating") ? Number(sp.get("rating")) : undefined;
@@ -41,6 +40,21 @@ function LugarInner() {
     [id, name, vicinity, rating, user_ratings_total]
   );
 
+  const [fav, setFav] = useState<boolean>(() => isFavorito(place.place_id));
+
+  function handleFav() {
+    const p: FavPlace = {
+      place_id: place.place_id,
+      name: place.name,
+      vicinity: place.vicinity,
+      rating: place.rating,
+      user_ratings_total: place.user_ratings_total,
+    };
+
+    toggleFavorito(p);
+    setFav(isFavorito(place.place_id));
+  }
+
   const externalMaps = useMemo(() => {
     const q = `${place.name}${place.vicinity ? `, ${place.vicinity}` : ""}`;
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
@@ -49,7 +63,9 @@ function LugarInner() {
   }, [place.name, place.vicinity]);
 
   const originFallback = "-23.3045,-51.1696";
-  const destinationParam = `${place.name}${place.vicinity ? `, ${place.vicinity}` : ""}`;
+  const destinationParam = `${place.name}${
+    place.vicinity ? `, ${place.vicinity}` : ""
+  }`;
   const rotaHref = `/rota?origin=${encodeURIComponent(
     originFallback
   )}&destination=${encodeURIComponent(destinationParam)}`;
@@ -87,15 +103,21 @@ function LugarInner() {
             Voltar
           </button>
         </div>
+
+        <button
+          onClick={handleFav}
+          className={`mt-4 w-full py-3 rounded-2xl font-semibold ${
+            fav
+              ? "bg-yellow-400 text-slate-900"
+              : "bg-white/10 border border-white/20 text-white"
+          }`}
+        >
+          {fav ? "★ Salvo nos favoritos" : "☆ Salvar nos favoritos"}
+        </button>
       </div>
 
       <div className="p-5 rounded-3xl bg-white/10 border border-white/20">
-        <h2 className="text-white font-semibold">O que dá pra fazer aqui</h2>
-        <ul className="mt-2 text-white/70 text-sm list-disc pl-5 space-y-1">
-          <li>Ver no mapa e traçar rota rapidamente</li>
-          <li>Salvar nos favoritos</li>
-          <li>Pedir à IA um roteiro para famílias</li>
-        </ul>
+        <h2 className="text-white font-semibold">Ações rápidas</h2>
 
         <div className="mt-4 flex gap-2">
           <a
@@ -123,7 +145,7 @@ function LugarInner() {
       <div className="p-5 rounded-3xl bg-white/10 border border-white/20">
         <h2 className="text-white font-semibold">Perguntar para a IA</h2>
         <p className="text-white/70 text-sm mt-1">
-          Quer um roteiro família para esse lugar? Abra o Assistente e pergunte:
+          Quer um roteiro família para esse lugar?
         </p>
         <div className="mt-2 p-3 rounded-2xl bg-black/30 border border-white/10 text-white text-sm">
           "Estou indo para {place.name}. Me sugira um roteiro família, com horários e dicas práticas."
