@@ -1,6 +1,10 @@
-import BottomNav from "@/components/BottomNav";export const metadata = {
+import type { Metadata } from "next";
+import BottomNav from "@/components/BottomNav";
+import { theme } from "@/styles/theme";
+
+export const metadata: Metadata = {
   title: "COMTUR Experience",
-  description: "App completo de turismo com IA integrada",
+  description: "Turismo inteligente com IA integrada",
 };
 
 export default function RootLayout({
@@ -9,13 +13,28 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt">
-      <body className="bg-black flex justify-center items-center min-h-screen">
-        <div className="w-full max-w-md min-h-screen bg-gradient-to-b from-blue-900 to-slate-950 text-white relative pb-16 transition-all duration-300 ease-in-out shadow-2xl rounded-3xl overflow-hidden">
+    <html lang="pt-BR">
+      <body
+        style={{
+          background: theme.colors.background,
+          color: theme.colors.text,
+          minHeight: "100vh",
+          margin: 0,
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 430,
+            margin: "0 auto",
+            minHeight: "100vh",
+            position: "relative",
+            paddingBottom: 80,
+          }}
+        >
           {children}
           <BottomNav />
         </div>
       </body>
     </html>
-  );  
+  );
 }
