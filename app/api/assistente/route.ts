@@ -1,88 +1,120 @@
-import OpenAI from "openai";
-
+// app/api/assistente/route.ts
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+import { COMTUR_SYSTEM_PROMPT } from "@/lib/ai/systemPrompt";
 
-function getMomentoDoDia() {
-  const hora = new Date().getHours();
+type InputBody = {
+  city?: string;
+  country?: string;
+  days?: number;
+  budget?: "baixo" | "medio" | "alto" | string;
+  interests?: string[]; // ex: ["gastronomia", "natureza", "cultura"]
+  notes?: string; // qualquer detalhe extra do usuário
+};
 
-  if (hora < 6) return "madrugada";
-  if (hora < 12) return "manhã";
-  if (hora < 18) return "tarde";
-  return "noite";
+function safeJsonParse(text: string) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
+function stripCodeFences(s: string) {
+  return s
+    .replace(/```json/gi, "```")
+    .replace(/```/g, "")
+    .trim();
 }
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-
-    const pergunta = body?.pergunta ?? "";
-    const preferencias = body?.preferencias ?? {};
-    const localizacao = body?.localizacao ?? null;
-
-    if (!pergunta || typeof pergunta !== "string") {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
       return Response.json(
-        { error: "Campo 'pergunta' é obrigatório" },
-        { status: 400 }
-      );
-    }
-
-    if (!process.env.OPENAI_API_KEY) {
-      return Response.json(
-        { error: "OPENAI_API_KEY não configurada" },
+        { error: "OPENAI_API_KEY não configurada na Vercel." },
         { status: 500 }
       );
     }
 
-    const momento = getMomentoDoDia();
+    const body = (await req.json().catch(() => ({}))) as InputBody;
 
-    const contexto = `
-Contexto do usuário:
-- Momento do dia: ${momento}
-- Preferências: ${JSON.stringify(preferencias)}
-- Localização: ${
-      localizacao
-        ? `Lat ${localizacao.lat}, Lng ${localizacao.lng}`
-        : "Não informada"
+    const city = (body.city || "Londrina").trim();
+    const country = (body.country || "Brasil").trim();
+    const days = Number.isFinite(body.days) ? Number(body.days) : 1;
+    const budget = (body.budget || "medio").toString();
+    const interests = Array.isArray(body.interests) ? body.interests : [];
+    const notes = (body.notes || "").toString().trim();
+
+    const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+
+    const userPrompt = `
+Monte um roteiro para:
+- Cidade: ${city}
+- País: ${country}
+- Duração: ${days} dia(s)
+- Orçamento: ${budget}
+- Interesses: ${interests.length ? interests.join(", ") : "geral"}
+- Observações do usuário: ${notes || "nenhuma"}
+
+IMPORTANTE:
+- Evitar crimes/notícias violentas e qualquer conteúdo sensacionalista.
+- Entregar no JSON EXATO do formato especificado no system prompt.
+`.trim();
+
+    // Chamando OpenAI sem SDK (somente fetch)
+    const r = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0.7,
+        messages: [
+          { role: "system", content: COMTUR_SYSTEM_PROMPT },
+          { role: "user", content: userPrompt },
+        ],
+      }),
+    });
+
+    const data = await r.json();
+
+    if (!r.ok) {
+      return Response.json(
+        {
+          error: "Falha ao chamar OpenAI",
+          details: data?.error?.message ?? data,
+        },
+        { status: 500 }
+      );
     }
 
-Regras importantes:
-- Sempre responder em português.
-- Evitar citar crimes, violência ou notícias negativas.
-- Focar em experiências positivas e familiares.
-- Se for hora de almoço ou jantar, sugerir restaurantes.
-- Se for manhã ou tarde, sugerir passeios adequados ao horário.
-- Estruturar resposta em tópicos claros.
-`;
+    const text =
+      data?.choices?.[0]?.message?.content ??
+      data?.choices?.[0]?.text ??
+      "";
 
-    const response = await client.responses.create({
-      model: "gpt-4o-mini",
-      input: [
-        {
-          role: "system",
-          content:
-            "Você é o assistente oficial da COMTUR EXPERIENCE, especialista em turismo familiar.",
-        },
-        {
-          role: "system",
-          content: contexto,
-        },
-        {
-          role: "user",
-          content: pergunta,
-        },
-      ],
-    });
+    const cleaned = stripCodeFences(String(text));
+    const parsed = safeJsonParse(cleaned);
 
-    return Response.json({
-      resposta: response.output_text,
-    });
+    if (!parsed) {
+      // fallback: devolve algo válido pra não quebrar o front
+      return Response.json(
+        {
+          error: "A IA não retornou JSON válido.",
+          raw: cleaned,
+        },
+        { status: 502 }
+      );
+    }
+
+    return Response.json(parsed, { status: 200 });
   } catch (err: any) {
     return Response.json(
-      { error: err?.message ?? "Erro desconhecido" },
+      { error: err?.message ?? "Erro inesperado" },
       { status: 500 }
     );
   }
