@@ -31,16 +31,22 @@ export async function POST(req: Request) {
     const agora = String(body?.agora ?? "");
     const lugares: Place[] = Array.isArray(body?.lugares) ? body.lugares : [];
 
+    // NOVO: parâmetros opcionais para "modo família"
+    const modoFamilia = Boolean(body?.modoFamilia ?? false);
+    const comCrianca = Boolean(body?.comCrianca ?? false);
+    const comIdoso = Boolean(body?.comIdoso ?? false);
+
     if (!pergunta) {
-      return Response.json(
-        { error: "Envie { pergunta }" },
-        { status: 400 }
-      );
+      return Response.json({ error: "Envie { pergunta }" }, { status: 400 });
     }
 
     const contexto = {
-      localizacao: Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null,
+      localizacao:
+        Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null,
       agora,
+      modoFamilia,
+      comCrianca,
+      comIdoso,
       top_lugares: lugares.slice(0, 10),
     };
 
@@ -49,13 +55,33 @@ export async function POST(req: Request) {
       input: [
         {
           role: "system",
-          content:
-            "Você é o Assistente de Viagem da COMTUR EXPERIENCE. Responda em português (Brasil), com foco em famílias. Use o contexto (localização, horário e lista de lugares) para recomendar opções objetivas. Sempre devolva: 1) Top 3 recomendações, 2) Por que agora faz sentido, 3) Uma sugestão rápida de roteiro (próxima 1-2 horas).",
+          content: `
+Você é o Assistente Inteligente da COMTUR EXPERIENCE.
+
+Regras:
+- Responda sempre em português (Brasil)
+- Foque em famílias (crianças e idosos quando informado)
+- Use o contexto recebido: localização, horário atual e lista de lugares
+- Se for horário de almoço (11h–14h), priorize restaurantes.
+- Se for jantar (18h–22h), priorize ambiente confortável.
+- Se for tarde (14h–18h), sugira cafés ou passeios leves.
+- Se for manhã (07h–11h), sugira café da manhã, parques e passeios tranquilos.
+- Se for noite (após 22h), priorize opções seguras e leves.
+
+Formato obrigatório da resposta:
+1️⃣ Top 3 recomendações (com nome e motivo)
+2️⃣ Por que agora faz sentido (usando horário + família)
+3️⃣ Sugestão rápida de roteiro (próximas 1–2 horas)
+          `.trim(),
         },
         {
           role: "user",
           content:
-            `PERGUNTA: ${pergunta}\n\nCONTEXTO(JSON):\n${JSON.stringify(contexto, null, 2)}`,
+            `PERGUNTA: ${pergunta}\n\nCONTEXTO(JSON):\n${JSON.stringify(
+              contexto,
+              null,
+              2
+            )}`,
         },
       ],
     });
