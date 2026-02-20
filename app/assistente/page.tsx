@@ -11,6 +11,13 @@ type Place = {
   user_ratings_total?: number;
 };
 
+type GeoState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "denied" }
+  | { status: "error"; message: string }
+  | { status: "ready"; lat: number; lng: number; accuracy?: number; at: string };
+
 export default function AssistentePage() {
   const [pergunta, setPergunta] = useState("");
   const [resposta, setResposta] = useState("");
@@ -24,10 +31,17 @@ export default function AssistentePage() {
     "idle" | "loading" | "ready" | "error"
   >("idle");
 
-  // Origem padrão (Londrina) -- depois ligamos na geolocalização real
-  const coords = useMemo(() => ({ lat: -23.3045, lng: -51.1696 }), []);
+  const [geo, setGeo] = useState<GeoState>({ status: "idle" });
 
-  async function carregarRestaurantes() {
+  // fallback: Londrina
+  const fallbackCoords = useMemo(() => ({ lat: -23.3045, lng: -51.1696 }), []);
+
+  function coordsAtuais() {
+    if (geo.status === "ready") return { lat: geo.lat, lng: geo.lng };
+    return fallbackCoords;
+  }
+
+  async function carregarRestaurantes(lat: number, lng: number) {
     try {
       setLugaresStatus("loading");
 
@@ -35,8 +49,8 @@ export default function AssistentePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          lat: coords.lat,
-          lng: coords.lng,
+          lat,
+          lng,
           type: "restaurant",
         }),
       });
@@ -55,8 +69,46 @@ export default function AssistentePage() {
     }
   }
 
+  async function usarMinhaLocalizacao() {
+    if (!("geolocation" in navigator)) {
+      setGeo({
+        status: "error",
+        message: "Seu navegador não suporta geolocalização.",
+      });
+      return;
+    }
+
+    setGeo({ status: "loading" });
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const accuracy = pos.coords.accuracy;
+        const at = new Date().toLocaleString("pt-BR");
+
+        setGeo({ status: "ready", lat, lng, accuracy, at });
+
+        // busca lugares com sua localização real
+        carregarRestaurantes(lat, lng);
+      },
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) {
+          setGeo({ status: "denied" });
+        } else {
+          setGeo({
+            status: "error",
+            message: err.message || "Erro ao obter localização.",
+          });
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  }
+
   useEffect(() => {
-    carregarRestaurantes();
+    // carrega inicial (fallback londrina)
+    carregarRestaurantes(fallbackCoords.lat, fallbackCoords.lng);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -94,16 +146,41 @@ export default function AssistentePage() {
     }
   }
 
+  const coords = coordsAtuais();
+
   return (
     <main className="max-w-4xl mx-auto px-4 py-6 space-y-4">
       <div className="p-5 rounded-3xl bg-white/10 border border-white/20">
         <h1 className="text-2xl font-bold text-white">🤖 Assistente IA</h1>
         <p className="text-white/70 mt-1">
-          Pergunte algo e eu recomendarei opções para famílias com base no horário e locais próximos.
+          Recomendações para famílias com base no horário + lugares perto de você.
         </p>
+
+        <div className="mt-3 text-xs text-white/60">
+          Coordenadas atuais: {coords.lat.toFixed(4)}, {coords.lng.toFixed(4)}
+          {geo.status === "ready" && geo.accuracy != null && (
+            <> • precisão ~{Math.round(geo.accuracy)}m</>
+          )}
+        </div>
       </div>
 
       <div className="p-4 rounded-3xl bg-white/10 border border-white/20 space-y-3">
+        <button
+          onClick={usarMinhaLocalizacao}
+          className="w-full bg-white/10 border border-white/20 py-3 rounded-2xl font-semibold text-white"
+        >
+          📍 Usar minha localização
+        </button>
+
+        {geo.status === "denied" && (
+          <div className="text-sm text-white/70">
+            Permissão negada. Ative a localização no navegador.
+          </div>
+        )}
+        {geo.status === "error" && (
+          <div className="text-sm text-white/70">Erro: {geo.message}</div>
+        )}
+
         <textarea
           value={pergunta}
           onChange={(e) => setPergunta(e.target.value)}
