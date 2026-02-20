@@ -1,160 +1,136 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import Topbar from "../../components/Topbar";
-import {
-  getFavoritos,
-  toggleFavorito,
-  FavPlace,
-} from "../../libs/favoritos";
 
-type Geo = { lat: number; lng: number } | null;
+type Preferencias = {
+  modoFamilia: boolean;
+  orcamento: "baixo" | "medio" | "alto";
+  idioma: "pt" | "en" | "es";
+};
+
+const KEY = "comtur_preferencias_v1";
+
+function loadPrefs(): Preferencias {
+  if (typeof window === "undefined") {
+    return { modoFamilia: true, orcamento: "medio", idioma: "pt" };
+  }
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return { modoFamilia: true, orcamento: "medio", idioma: "pt" };
+    const p = JSON.parse(raw);
+    return {
+      modoFamilia: !!p.modoFamilia,
+      orcamento: p.orcamento ?? "medio",
+      idioma: p.idioma ?? "pt",
+    };
+  } catch {
+    return { modoFamilia: true, orcamento: "medio", idioma: "pt" };
+  }
+}
+
+function savePrefs(p: Preferencias) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(KEY, JSON.stringify(p));
+}
 
 export default function PerfilPage() {
-  const router = useRouter();
-  const [favoritos, setFavoritos] = useState<FavPlace[]>([]);
-  const [geo, setGeo] = useState<Geo>(null);
-
-  function carregar() {
-    setFavoritos(getFavoritos());
-  }
+  const [prefs, setPrefs] = useState<Preferencias>({
+    modoFamilia: true,
+    orcamento: "medio",
+    idioma: "pt",
+  });
 
   useEffect(() => {
-    carregar();
-
-    // tenta pegar localização pra rotas
-    if (!("geolocation" in navigator)) return;
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setGeo({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-        });
-      },
-      () => {},
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
-    );
+    setPrefs(loadPrefs());
   }, []);
 
-  function remover(place: FavPlace) {
-    toggleFavorito(place);
-    carregar();
-  }
-
-  function abrirMapa(place: FavPlace) {
-    if (!place.lat || !place.lng) return;
-    router.push(
-      `/mapa?lat=${place.lat}&lng=${place.lng}&name=${encodeURIComponent(
-        place.name
-      )}`
-    );
-  }
-
-  function tracarRota(place: FavPlace) {
-    if (!geo) return;
-    if (!place.lat || !place.lng) return;
-
-    router.push(
-      `/rota?fromLat=${geo.lat}&fromLng=${geo.lng}&toLat=${place.lat}&toLng=${
-        place.lng
-      }&toName=${encodeURIComponent(place.name)}`
-    );
+  function update(next: Partial<Preferencias>) {
+    const novo = { ...prefs, ...next };
+    setPrefs(novo);
+    savePrefs(novo);
   }
 
   return (
-    <div className="min-h-screen">
-      <Topbar title="Perfil" onBack={() => router.back()} />
+    <main className="max-w-4xl mx-auto px-4 py-6 space-y-4">
+      <div className="p-5 rounded-3xl bg-white/10 border border-white/20">
+        <h1 className="text-2xl font-bold text-white">👤 Perfil</h1>
+        <p className="text-white/70 mt-1">
+          Preferências para personalizar sua experiência com IA.
+        </p>
+      </div>
 
-      <main className="max-w-4xl mx-auto px-4 py-6 space-y-4">
-        <div className="p-4 rounded-2xl bg-white/10 border border-white/20">
-          <div className="text-lg font-semibold text-white">❤️ Salvos</div>
-          <div className="text-sm text-white/70 mt-1">
-            Seus lugares favoritos para repetir com a família.
+      <div className="p-5 rounded-3xl bg-white/10 border border-white/20 space-y-4">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <div className="text-white font-semibold">Modo Família</div>
+            <div className="text-sm text-white/70">
+              Recomendações mais seguras e adequadas para crianças.
+            </div>
+          </div>
+
+          <button
+            onClick={() => update({ modoFamilia: !prefs.modoFamilia })}
+            className={`px-4 py-2 rounded-2xl font-semibold ${
+              prefs.modoFamilia
+                ? "bg-yellow-400 text-slate-900"
+                : "bg-white/10 border border-white/20 text-white"
+            }`}
+          >
+            {prefs.modoFamilia ? "Ativado" : "Desativado"}
+          </button>
+        </div>
+
+        <div>
+          <div className="text-white font-semibold mb-2">Orçamento</div>
+          <div className="grid grid-cols-3 gap-2">
+            {(["baixo", "medio", "alto"] as const).map((o) => (
+              <button
+                key={o}
+                onClick={() => update({ orcamento: o })}
+                className={`py-2 rounded-2xl font-semibold ${
+                  prefs.orcamento === o
+                    ? "bg-white text-blue-900"
+                    : "bg-white/10 border border-white/20 text-white"
+                }`}
+              >
+                {o === "baixo" ? "Baixo" : o === "medio" ? "Médio" : "Alto"}
+              </button>
+            ))}
+          </div>
+          <div className="text-xs text-white/60 mt-2">
+            *Depois vamos usar isso na IA (ex: custo-benefício).
           </div>
         </div>
 
-        {favoritos.length === 0 && (
-          <div className="p-4 rounded-2xl bg-white/10 border border-white/20 text-white/70">
-            Você ainda não salvou nenhum lugar.
-            <div className="mt-2 text-white/80">
-              Vá em <b>Explorar</b> e toque no ❤️.
-            </div>
+        <div>
+          <div className="text-white font-semibold mb-2">Idioma do app</div>
+          <div className="grid grid-cols-3 gap-2">
+            {(["pt", "en", "es"] as const).map((i) => (
+              <button
+                key={i}
+                onClick={() => update({ idioma: i })}
+                className={`py-2 rounded-2xl font-semibold ${
+                  prefs.idioma === i
+                    ? "bg-white text-blue-900"
+                    : "bg-white/10 border border-white/20 text-white"
+                }`}
+              >
+                {i === "pt" ? "Português" : i === "en" ? "English" : "Español"}
+              </button>
+            ))}
           </div>
-        )}
+        </div>
+      </div>
 
-        {favoritos.map((place) => (
-          <div
-            key={place.place_id}
-            className="overflow-hidden rounded-2xl bg-white/10 border border-white/20"
-          >
-            {place.photo_url ? (
-              <div className="w-full h-40 bg-black/20">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={place.photo_url}
-                  alt={place.name}
-                  className="w-full h-40 object-cover"
-                  loading="lazy"
-                />
-              </div>
-            ) : null}
-
-            <div className="p-4 space-y-2">
-              <div className="flex items-start justify-between gap-3">
-                <div className="font-semibold text-white text-lg">
-                  {place.name}
-                </div>
-
-                <button
-                  onClick={() => remover(place)}
-                  className="px-3 py-2 rounded-xl bg-white/10 border border-white/20 text-sm"
-                >
-                  Remover
-                </button>
-              </div>
-
-              {place.vicinity && (
-                <div className="text-sm text-white/70">{place.vicinity}</div>
-              )}
-
-              <div className="text-sm text-white/70">
-                {typeof place.rating === "number" ? (
-                  <>
-                    ⭐ {place.rating} ({place.user_ratings_total ?? 0})
-                  </>
-                ) : (
-                  <>⭐ Sem avaliação</>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 pt-2">
-                <button
-                  onClick={() => abrirMapa(place)}
-                  className="bg-white text-blue-900 px-3 py-2 rounded-xl font-semibold"
-                  disabled={!place.lat || !place.lng}
-                >
-                  🗺 Mapa
-                </button>
-
-                <button
-                  onClick={() => tracarRota(place)}
-                  className="bg-emerald-400 text-emerald-950 px-3 py-2 rounded-xl font-semibold"
-                  disabled={!geo || !place.lat || !place.lng}
-                >
-                  🚗 Rota
-                </button>
-              </div>
-
-              {!geo && (
-                <div className="text-xs text-white/60 pt-1">
-                  Ative a localização para traçar rotas.
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-      </main>
-    </div>
+      <div className="p-5 rounded-3xl bg-white/10 border border-white/20">
+        <h2 className="text-white font-semibold">Login</h2>
+        <p className="text-white/70 text-sm mt-1">
+          *Placeholder de apresentação. Depois plugamos Supabase/Google login.
+        </p>
+        <button className="mt-3 w-full bg-white/10 border border-white/20 py-3 rounded-2xl font-semibold text-white">
+          🔐 Entrar com Google (em breve)
+        </button>
+      </div>
+    </main>
   );
 }
