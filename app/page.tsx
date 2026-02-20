@@ -1,72 +1,65 @@
 "use client";
 
 import Link from "next/link";
-import Topbar from "@/components/Topbar";
+import { theme } from "@/styles/theme";
 
-export default function Page() {
+export default function HomePage() {
   return (
-    <div className="min-h-screen">
-      <Topbar title="COMTUR EXPERIENCE -- Londrina" />
+    <main style={{ padding: 20, display: "flex", flexDirection: "column", gap: 20 }}>
 
-      <main className="max-w-4xl mx-auto px-4 py-8 space-y-6">
-        <div className="p-5 rounded-3xl bg-white/10 border border-white/20">
-          <h1 className="text-3xl font-bold text-white mb-2">Sua viagem, com IA.</h1>
-          <p className="text-white/80">
-            Compre pacotes, explore o mapa, receba recomendações por horário e poste no Feed.
-          </p>
+      {/* HERO */}
+      <div
+        style={{
+          background: theme.colors.card,
+          border: `1px solid ${theme.colors.border}`,
+          borderRadius: theme.radius.xl,
+          padding: 24,
+        }}
+      >
+        <div style={{ fontSize: 12, opacity: 0.7 }}>
+          COMTUR EXPERIENCE
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Link
-            href="/pacotes"
-            className="bg-white text-blue-900 rounded-2xl p-4 font-semibold text-center"
-          >
-            🧳 Pacotes
-          </Link>
+        <h1 style={{ fontSize: 26, marginTop: 8 }}>
+          Turismo inteligente para famílias
+        </h1>
 
-          <Link
-            href="/explorar"
-            className="bg-white/10 border border-white/20 rounded-2xl p-4 font-semibold text-center text-white"
-          >
-            🗺️ Explorar
-          </Link>
+        <p style={{ marginTop: 12, opacity: 0.7 }}>
+          Descubra restaurantes, roteiros e experiências com ajuda da IA,
+          adaptado ao seu momento e localização.
+        </p>
+      </div>
 
-          <Link
-            href="/assistente"
-            className="bg-white/10 border border-white/20 rounded-2xl p-4 font-semibold text-center text-white"
-          >
-            🤖 Assistente IA
-          </Link>
+      {/* BOTÕES PRINCIPAIS */}
 
-          <Link
-            href="/feed"
-            className="bg-white/10 border border-white/20 rounded-2xl p-4 font-semibold text-center text-white"
-          >
-            📸 Feed
-          </Link>
+      <Link href="/explorar" style={buttonStyle}>
+        📍 Explorar perto de mim
+      </Link>
 
-          <Link
-            href="/mapa"
-            className="col-span-2 bg-white/10 border border-white/20 rounded-2xl p-4 font-semibold text-center text-white"
-          >
-            📍 Mapa (embed)
-          </Link>
+      <Link href="/guia-local" style={buttonStyle}>
+        🤖 Guia inteligente
+      </Link>
 
-          <Link
-            href="/perfil"
-            className="col-span-2 bg-yellow-400 text-slate-900 rounded-2xl p-4 font-semibold text-center"
-          >
-            👤 Perfil (preferências da família)
-          </Link>
-        </div>
+      <Link href="/pacotes" style={buttonStyle}>
+        🎒 Pacotes recomendados
+      </Link>
 
-        <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-          <p className="text-sm text-white/80">
-            *Demo de apresentação: sem cobrança real. Próximo: deixar o app mais "startup"
-            com ícones, onboarding e pacotes com checkout.
-          </p>
-        </div>
-      </main>
-    </div>
+      <Link href="/roteiros" style={buttonStyle}>
+        💾 Meus roteiros
+      </Link>
+
+    </main>
   );
 }
+
+const buttonStyle: React.CSSProperties = {
+  display: "block",
+  padding: "18px",
+  borderRadius: theme.radius.lg,
+  background: theme.colors.primary,
+  color: "#fff",
+  textDecoration: "none",
+  textAlign: "center",
+  fontWeight: 600,
+  fontSize: 16,
+};
