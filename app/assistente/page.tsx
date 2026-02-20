@@ -1,231 +1,425 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Topbar from "@/components/Topbar";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
-type Preferencias = {
-  comCriancas?: boolean;
-  acessibilidade?: boolean;
-  evitarCheio?: boolean;
-  obs?: string;
+type GuiaResponse = {
+  city?: string;
+  country?: string;
+  summary?: string;
+  safety_notes?: string[];
+  itinerary?: Array<{
+    day: number;
+    title?: string;
+    items: Array<{
+      time?: string;
+      title: string;
+      description?: string;
+      neighborhood?: string;
+      tips?: string[];
+      maps_query?: string;
+    }>;
+  }>;
+  food_suggestions?: Array<{
+    title: string;
+    description?: string;
+    maps_query?: string;
+  }>;
+  extra_tips?: string[];
 };
-
-type Localizacao = {
-  lat: number;
-  lng: number;
-  accuracy?: number;
-};
-
-const PREF_KEY = "comtur_preferencias_v1";
-
-function loadPreferencias(): Preferencias {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = localStorage.getItem(PREF_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
-}
 
 export default function AssistentePage() {
-  const [pergunta, setPergunta] = useState("");
-  const [resposta, setResposta] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
-  const [erro, setErro] = useState("");
+  const router = useRouter();
 
-  const [preferencias, setPreferencias] = useState<Preferencias>({});
-  const [localizacao, setLocalizacao] = useState<Localizacao | null>(null);
-  const [geoStatus, setGeoStatus] = useState<
-    "idle" | "loading" | "denied" | "ready" | "error"
-  >("idle");
+  const [city, setCity] = useState("Londrina");
+  const [country, setCountry] = useState("Brasil");
+  const [days, setDays] = useState(1);
+  const [budget, setBudget] = useState<"baixo" | "medio" | "alto">("medio");
+  const [interestsText, setInterestsText] = useState(
+    "gastronomia, cultura, natureza"
+  );
+  const [notes, setNotes] = useState("");
 
-  useEffect(() => {
-    setPreferencias(loadPreferencias());
-    pegarLocalizacao(); // tenta automaticamente
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">(
+    "idle"
+  );
+  const [error, setError] = useState("");
+  const [data, setData] = useState<GuiaResponse | null>(null);
 
-  function pegarLocalizacao() {
-    if (!("geolocation" in navigator)) {
-      setGeoStatus("error");
-      return;
-    }
-
-    setGeoStatus("loading");
-
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocalizacao({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-          accuracy: pos.coords.accuracy,
-        });
-        setGeoStatus("ready");
-      },
-      (err) => {
-        if (err.code === err.PERMISSION_DENIED) setGeoStatus("denied");
-        else setGeoStatus("error");
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
+  function parseInterests(text: string) {
+    return text
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .slice(0, 12);
   }
 
-  async function enviar() {
-    const p = pergunta.trim();
-    if (!p) return;
-
-    setStatus("loading");
-    setErro("");
-    setResposta("");
-
+  async function gerarGuia() {
     try {
+      setStatus("loading");
+      setError("");
+      setData(null);
+
       const res = await fetch("/api/assistente", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pergunta: p,
-          preferencias,
-          localizacao,
+          city,
+          country,
+          days,
+          budget,
+          interests: parseInterests(interestsText),
+          notes,
         }),
       });
 
-      const data = await res.json();
+      const json = await res.json();
 
       if (!res.ok) {
         setStatus("error");
-        setErro(data?.error || "Erro ao chamar a IA.");
+        setError(json?.error || "Erro ao gerar guia.");
         return;
       }
 
-      setResposta(data?.resposta || "Sem resposta.");
-      setStatus("idle");
+      setData(json);
+      setStatus("ready");
     } catch (e: any) {
       setStatus("error");
-      setErro(e?.message || "Erro inesperado.");
+      setError(e?.message || "Erro inesperado.");
     }
   }
 
-  function perguntaRapida(texto: string) {
-    setPergunta(texto);
-    setTimeout(() => enviar(), 50);
-  }
-
   return (
-    <div className="min-h-screen">
-      <Topbar title="Assistente IA" />
+    <div style={{ padding: 16, maxWidth: 900, margin: "0 auto" }}>
+      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        <button
+          onClick={() => router.back()}
+          style={{
+            padding: "10px 14px",
+            borderRadius: 12,
+            border: "1px solid rgba(0,0,0,0.12)",
+            background: "white",
+            cursor: "pointer",
+          }}
+        >
+          ← Voltar
+        </button>
 
-      <main className="max-w-4xl mx-auto px-4 py-6 space-y-4">
-        <div className="p-5 rounded-3xl bg-white/10 border border-white/20">
-          <h1 className="text-2xl font-bold text-white">🤖 Assistente COMTUR</h1>
-          <p className="text-white/70 mt-1">
-            A IA usa <b>preferências</b> + <b>horário</b> + <b>localização</b>{" "}
-            (se permitida) para recomendar experiências para famílias.
-          </p>
+        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>
+          Assistente IA (Guia)
+        </h1>
+      </div>
 
-          <div className="mt-3 flex flex-wrap gap-2">
-            <span className="px-2 py-1 rounded-full bg-white/10 border border-white/15 text-xs text-white/80">
-              Preferências: {Object.keys(preferencias).length ? "OK" : "vazio"}
-            </span>
-            <span className="px-2 py-1 rounded-full bg-white/10 border border-white/15 text-xs text-white/80">
-              Localização:{" "}
-              {geoStatus === "ready"
-                ? "OK"
-                : geoStatus === "denied"
-                ? "negada"
-                : geoStatus}
-            </span>
+      <div
+        style={{
+          marginTop: 16,
+          padding: 16,
+          borderRadius: 16,
+          border: "1px solid rgba(0,0,0,0.12)",
+          background: "white",
+        }}
+      >
+        <div style={{ display: "grid", gap: 12 }}>
+          <div style={{ display: "grid", gap: 6 }}>
+            <label style={{ fontWeight: 700 }}>Cidade</label>
+            <input
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              placeholder="Ex: Londrina"
+              style={{
+                padding: 12,
+                borderRadius: 12,
+                border: "1px solid rgba(0,0,0,0.12)",
+              }}
+            />
+          </div>
+
+          <div style={{ display: "grid", gap: 6 }}>
+            <label style={{ fontWeight: 700 }}>País</label>
+            <input
+              value={country}
+              onChange={(e) => setCountry(e.target.value)}
+              placeholder="Ex: Brasil"
+              style={{
+                padding: 12,
+                borderRadius: 12,
+                border: "1px solid rgba(0,0,0,0.12)",
+              }}
+            />
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={{ display: "grid", gap: 6 }}>
+              <label style={{ fontWeight: 700 }}>Dias</label>
+              <input
+                type="number"
+                min={1}
+                max={14}
+                value={days}
+                onChange={(e) => setDays(Number(e.target.value))}
+                style={{
+                  padding: 12,
+                  borderRadius: 12,
+                  border: "1px solid rgba(0,0,0,0.12)",
+                }}
+              />
+            </div>
+
+            <div style={{ display: "grid", gap: 6 }}>
+              <label style={{ fontWeight: 700 }}>Orçamento</label>
+              <select
+                value={budget}
+                onChange={(e) => setBudget(e.target.value as any)}
+                style={{
+                  padding: 12,
+                  borderRadius: 12,
+                  border: "1px solid rgba(0,0,0,0.12)",
+                  background: "white",
+                }}
+              >
+                <option value="baixo">baixo</option>
+                <option value="medio">medio</option>
+                <option value="alto">alto</option>
+              </select>
+            </div>
+          </div>
+
+          <div style={{ display: "grid", gap: 6 }}>
+            <label style={{ fontWeight: 700 }}>Interesses (separe por vírgula)</label>
+            <input
+              value={interestsText}
+              onChange={(e) => setInterestsText(e.target.value)}
+              placeholder="Ex: gastronomia, cultura, natureza"
+              style={{
+                padding: 12,
+                borderRadius: 12,
+                border: "1px solid rgba(0,0,0,0.12)",
+              }}
+            />
+          </div>
+
+          <div style={{ display: "grid", gap: 6 }}>
+            <label style={{ fontWeight: 700 }}>Observações</label>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Ex: viagem em família, evitar lugares lotados..."
+              rows={3}
+              style={{
+                padding: 12,
+                borderRadius: 12,
+                border: "1px solid rgba(0,0,0,0.12)",
+              }}
+            />
           </div>
 
           <button
-            onClick={pegarLocalizacao}
-            className="mt-3 w-full bg-white/10 border border-white/20 py-3 rounded-2xl font-semibold text-white"
-          >
-            📍 Atualizar localização
-          </button>
-        </div>
-
-        {/* Ações rápidas */}
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={() =>
-              perguntaRapida(
-                "Monte um roteiro de 3 horas para família perto de mim, com almoço e um passeio tranquilo."
-              )
-            }
-            className="bg-white/10 border border-white/20 rounded-2xl p-3 font-semibold text-white text-sm"
-          >
-            ⏱ Roteiro 3h
-          </button>
-
-          <button
-            onClick={() =>
-              perguntaRapida(
-                "Sugira 5 restaurantes bem avaliados para almoço em família e o que pedir em cada um."
-              )
-            }
-            className="bg-white/10 border border-white/20 rounded-2xl p-3 font-semibold text-white text-sm"
-          >
-            🍽 Almoço
-          </button>
-
-          <button
-            onClick={() =>
-              perguntaRapida(
-                "Quero um passeio econômico para hoje com criança, evitando lugares muito cheios."
-              )
-            }
-            className="bg-white/10 border border-white/20 rounded-2xl p-3 font-semibold text-white text-sm"
-          >
-            💸 Econômico
-          </button>
-
-          <button
-            onClick={() =>
-              perguntaRapida(
-                "Crie um roteiro premium em Londrina para família, com experiências marcantes e horários."
-              )
-            }
-            className="bg-white/10 border border-white/20 rounded-2xl p-3 font-semibold text-white text-sm"
-          >
-            ✨ Premium
-          </button>
-        </div>
-
-        {/* Input */}
-        <div className="p-5 rounded-3xl bg-white/10 border border-white/20 space-y-3">
-          <textarea
-            value={pergunta}
-            onChange={(e) => setPergunta(e.target.value)}
-            placeholder="Digite sua pergunta... Ex: Estou na Rua Sergipe e quero um almoço com criança + passeio."
-            className="w-full min-h-[120px] p-3 rounded-2xl bg-black/30 border border-white/10 text-white outline-none"
-          />
-
-          <button
-            onClick={enviar}
+            onClick={gerarGuia}
             disabled={status === "loading"}
-            className="w-full bg-yellow-400 text-slate-900 py-3 rounded-2xl font-semibold disabled:opacity-60"
+            style={{
+              padding: 14,
+              borderRadius: 14,
+              border: "none",
+              background: "#111827",
+              color: "white",
+              fontWeight: 800,
+              cursor: status === "loading" ? "not-allowed" : "pointer",
+              opacity: status === "loading" ? 0.7 : 1,
+            }}
           >
-            {status === "loading" ? "Pensando..." : "Enviar para IA"}
+            {status === "loading" ? "Gerando..." : "Gerar guia"}
           </button>
+        </div>
+      </div>
 
-          {status === "error" && (
-            <div className="p-4 rounded-2xl bg-red-500/20 border border-red-400/30 text-white">
-              Erro: {erro}
+      {status === "error" && (
+        <div
+          style={{
+            marginTop: 16,
+            padding: 16,
+            borderRadius: 16,
+            border: "1px solid rgba(239,68,68,0.35)",
+            background: "rgba(239,68,68,0.08)",
+            color: "#991b1b",
+            fontWeight: 700,
+          }}
+        >
+          Erro: {error}
+        </div>
+      )}
+
+      {status === "ready" && data && (
+        <div style={{ marginTop: 16, display: "grid", gap: 12 }}>
+          <div
+            style={{
+              padding: 16,
+              borderRadius: 16,
+              border: "1px solid rgba(0,0,0,0.12)",
+              background: "white",
+            }}
+          >
+            <h2 style={{ marginTop: 0 }}>
+              {data.city || city} • {data.country || country}
+            </h2>
+            {data.summary && <p style={{ marginBottom: 0 }}>{data.summary}</p>}
+          </div>
+
+          {Array.isArray(data.safety_notes) && data.safety_notes.length > 0 && (
+            <div
+              style={{
+                padding: 16,
+                borderRadius: 16,
+                border: "1px solid rgba(0,0,0,0.12)",
+                background: "white",
+              }}
+            >
+              <h3 style={{ marginTop: 0 }}>Notas de segurança</h3>
+              <ul style={{ marginBottom: 0 }}>
+                {data.safety_notes.map((t, idx) => (
+                  <li key={idx}>{t}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {Array.isArray(data.itinerary) && data.itinerary.length > 0 && (
+            <div
+              style={{
+                padding: 16,
+                borderRadius: 16,
+                border: "1px solid rgba(0,0,0,0.12)",
+                background: "white",
+              }}
+            >
+              <h3 style={{ marginTop: 0 }}>Roteiro</h3>
+
+              {data.itinerary.map((dayBlock) => (
+                <div key={dayBlock.day} style={{ marginTop: 14 }}>
+                  <h4 style={{ margin: "8px 0" }}>
+                    Dia {dayBlock.day} {dayBlock.title ? `-- ${dayBlock.title}` : ""}
+                  </h4>
+
+                  <div style={{ display: "grid", gap: 10 }}>
+                    {dayBlock.items?.map((item, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          padding: 12,
+                          borderRadius: 14,
+                          border: "1px solid rgba(0,0,0,0.12)",
+                          background: "rgba(17,24,39,0.03)",
+                        }}
+                      >
+                        <div style={{ fontWeight: 900 }}>
+                          {item.time ? `${item.time} • ` : ""}
+                          {item.title}
+                        </div>
+
+                        {item.description && (
+                          <div style={{ marginTop: 6, opacity: 0.85 }}>
+                            {item.description}
+                          </div>
+                        )}
+
+                        {item.neighborhood && (
+                          <div style={{ marginTop: 6, fontSize: 13, opacity: 0.75 }}>
+                            📍 {item.neighborhood}
+                          </div>
+                        )}
+
+                        {Array.isArray(item.tips) && item.tips.length > 0 && (
+                          <ul style={{ marginTop: 8, marginBottom: 0 }}>
+                            {item.tips.map((t, i) => (
+                              <li key={i}>{t}</li>
+                            ))}
+                          </ul>
+                        )}
+
+                        {item.maps_query && (
+                          <div style={{ marginTop: 10 }}>
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                                item.maps_query
+                              )}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={{ fontWeight: 800 }}
+                            >
+                              Abrir no Google Maps →
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {Array.isArray(data.food_suggestions) && data.food_suggestions.length > 0 && (
+            <div
+              style={{
+                padding: 16,
+                borderRadius: 16,
+                border: "1px solid rgba(0,0,0,0.12)",
+                background: "white",
+              }}
+            >
+              <h3 style={{ marginTop: 0 }}>Sugestões de comida</h3>
+              <div style={{ display: "grid", gap: 10 }}>
+                {data.food_suggestions.map((f, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      padding: 12,
+                      borderRadius: 14,
+                      border: "1px solid rgba(0,0,0,0.12)",
+                    }}
+                  >
+                    <div style={{ fontWeight: 900 }}>{f.title}</div>
+                    {f.description && (
+                      <div style={{ marginTop: 6, opacity: 0.85 }}>{f.description}</div>
+                    )}
+                    {f.maps_query && (
+                      <div style={{ marginTop: 10 }}>
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                            f.maps_query
+                          )}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={{ fontWeight: 800 }}
+                        >
+                          Ver no Maps →
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {Array.isArray(data.extra_tips) && data.extra_tips.length > 0 && (
+            <div
+              style={{
+                padding: 16,
+                borderRadius: 16,
+                border: "1px solid rgba(0,0,0,0.12)",
+                background: "white",
+              }}
+            >
+              <h3 style={{ marginTop: 0 }}>Dicas extras</h3>
+              <ul style={{ marginBottom: 0 }}>
+                {data.extra_tips.map((t, idx) => (
+                  <li key={idx}>{t}</li>
+                ))}
+              </ul>
             </div>
           )}
         </div>
-
-        {/* Resposta */}
-        {resposta && (
-          <div className="p-5 rounded-3xl bg-white/10 border border-white/20">
-            <div className="text-white font-semibold mb-2">Resposta</div>
-            <div className="text-white/90 whitespace-pre-wrap">{resposta}</div>
-          </div>
-        )}
-      </main>
+      )}
     </div>
   );
 }
