@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Topbar from "@/components/Topbar";
 import { FavPlace, isFavorito, toggleFavorito } from "@/lib/favoritos";
+import { montarContextoFamilias } from "@/lib/contexto";
+import { getPreferencias } from "@/lib/preferencias";
 
 type GeoState =
   | { status: "idle" }
@@ -34,6 +36,13 @@ export default function ExplorarPage() {
   const [placesError, setPlacesError] = useState<string>("");
 
   const [refreshFavTick, setRefreshFavTick] = useState(0);
+
+  // IA roteiro
+  const [roteiroStatus, setRoteiroStatus] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >("idle");
+  const [roteiro, setRoteiro] = useState("");
+  const [roteiroErro, setRoteiroErro] = useState("");
 
   async function buscarRestaurantes(lat: number, lng: number) {
     try {
@@ -121,6 +130,47 @@ export default function ExplorarPage() {
     setRefreshFavTick((x) => x + 1);
   }
 
+  async function gerarRoteiroIA() {
+    try {
+      setRoteiroStatus("loading");
+      setRoteiroErro("");
+      setRoteiro("");
+
+      const contexto = montarContextoFamilias();
+      const preferencias = getPreferencias();
+
+      const pergunta =
+        "Crie um roteiro curto para as próximas 4 horas, em Londrina, para família. " +
+        "Use os restaurantes disponíveis como sugestão de almoço/lanche. " +
+        "Responda com 3 opções (econômica, custo-benefício, premium) e em formato por horários.";
+
+      const res = await fetch("/api/ai-contexto", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pergunta,
+          contexto,
+          preferencias,
+          lugares: places.slice(0, 10),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setRoteiroStatus("error");
+        setRoteiroErro(data?.error || "Erro ao gerar roteiro.");
+        return;
+      }
+
+      setRoteiro(String(data?.resposta ?? ""));
+      setRoteiroStatus("ready");
+    } catch (e: any) {
+      setRoteiroStatus("error");
+      setRoteiroErro(e?.message || "Erro inesperado.");
+    }
+  }
+
   return (
     <div className="min-h-screen">
       <Topbar title="Explorar (Perto de Mim)" onBack={() => router.back()} />
@@ -142,6 +192,16 @@ export default function ExplorarPage() {
           📍 Atualizar localização
         </button>
 
+        <button
+          onClick={gerarRoteiroIA}
+          disabled={placesStatus !== "ready" || places.length === 0 || roteiroStatus === "loading"}
+          className="w-full bg-yellow-400 text-slate-900 py-3 rounded-2xl font-semibold disabled:opacity-60"
+        >
+          {roteiroStatus === "loading"
+            ? "Gerando roteiro..."
+            : "✨ Gerar roteiro com IA usando estes restaurantes"}
+        </button>
+
         {geo.status === "loading" && (
           <div className="p-4 rounded-2xl bg-white/10 border border-white/20">
             Obtendo localização...
@@ -161,6 +221,18 @@ export default function ExplorarPage() {
           <div className="p-4 rounded-2xl bg-white/10 border border-white/20">
             <p className="font-semibold">Erro:</p>
             <p className="text-white/70 text-sm mt-1">{geo.message}</p>
+          </div>
+        )}
+
+        {roteiroStatus === "error" && (
+          <div className="p-4 rounded-2xl bg-white/10 border border-white/20">
+            Erro ao gerar roteiro: {roteiroErro}
+          </div>
+        )}
+
+        {roteiroStatus === "ready" && roteiro && (
+          <div className="p-5 rounded-3xl bg-white/10 border border-white/20 text-white whitespace-pre-wrap">
+            {roteiro}
           </div>
         )}
 
@@ -190,9 +262,7 @@ export default function ExplorarPage() {
                 `?name=${encodeURIComponent(place.name)}` +
                 `&vicinity=${encodeURIComponent(place.vicinity ?? "")}` +
                 `&rating=${encodeURIComponent(String(place.rating ?? ""))}` +
-                `&urt=${encodeURIComponent(
-                  String(place.user_ratings_total ?? "")
-                )}`;
+                `&urt=${encodeURIComponent(String(place.user_ratings_total ?? ""))}`;
 
               return (
                 <div
@@ -252,7 +322,6 @@ export default function ExplorarPage() {
               );
             })}
 
-            {/* só pra evitar lint de state não usado */}
             <div className="hidden">{refreshFavTick}</div>
           </div>
         )}
