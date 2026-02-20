@@ -1,32 +1,54 @@
 "use client";
 
-export default function Topbar({
-  title,
-  onBack,
-}: {
+import { theme } from "@/styles/theme";
+
+type TopbarProps = {
   title: string;
   onBack?: () => void;
-}) {
+};
+
+export default function Topbar({ title, onBack }: TopbarProps) {
   return (
-    <header className="sticky top-0 z-50 bg-blue-950 border-b border-white/10 px-4 py-3">
-      <div className="flex items-center justify-between">
-        {onBack ? (
-          <button
-            onClick={onBack}
-            className="text-sm text-white/70 hover:text-white"
-          >
-            ← Voltar
-          </button>
-        ) : (
-          <div className="w-16" />
-        )}
+    <div
+      style={{
+        position: "sticky",
+        top: 0,
+        zIndex: 40,
+        padding: "14px 18px",
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        background: "rgba(15, 23, 42, 0.75)",
+        borderBottom: `1px solid ${theme.colors.border}`,
+        backdropFilter: "blur(10px)",
+        WebkitBackdropFilter: "blur(10px)",
+      }}
+    >
+      {onBack && (
+        <button
+          onClick={onBack}
+          style={{
+            background: "transparent",
+            border: `1px solid ${theme.colors.border}`,
+            borderRadius: 12,
+            padding: "6px 10px",
+            cursor: "pointer",
+            color: theme.colors.text,
+          }}
+        >
+          ←
+        </button>
+      )}
 
-        <div className="text-center font-bold tracking-wide">✈️ COMTUR</div>
-
-        <div className="w-16 text-right text-xs text-white/50">EXP</div>
+      <div
+        style={{
+          fontSize: 18,
+          fontWeight: 700,
+          color: theme.colors.text,
+        }}
+      >
+        {title}
       </div>
-
-      <div className="mt-2 text-center text-sm text-white/80">{title}</div>
-    </header>
+    </div>
   );
 }
