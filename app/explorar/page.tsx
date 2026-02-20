@@ -13,6 +13,13 @@ type Place = {
   open_now?: boolean;
 };
 
+type GeoState =
+  | { status: "idle" }
+  | { status: "loading" }
+  | { status: "denied" }
+  | { status: "error"; message: string }
+  | { status: "ready"; lat: number; lng: number; accuracy?: number; at: string };
+
 function ratingLabel(r?: number) {
   if (typeof r !== "number") return "Sem nota";
   if (r >= 4.6) return "Excelente";
@@ -29,10 +36,17 @@ export default function ExplorarPage() {
   );
   const [erro, setErro] = useState("");
 
-  // Exemplo fixo de Londrina (depois ligamos na geolocalização real)
-  const origem = useMemo(() => ({ lat: -23.3045, lng: -51.1696 }), []);
+  const [geo, setGeo] = useState<GeoState>({ status: "idle" });
 
-  async function carregar() {
+  // fallback Londrina
+  const fallback = useMemo(() => ({ lat: -23.3045, lng: -51.1696 }), []);
+
+  function coordsAtuais() {
+    if (geo.status === "ready") return { lat: geo.lat, lng: geo.lng };
+    return fallback;
+  }
+
+  async function carregar(lat: number, lng: number) {
     try {
       setStatus("loading");
       setErro("");
@@ -40,11 +54,7 @@ export default function ExplorarPage() {
       const res = await fetch("/api/places", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          lat: origem.lat,
-          lng: origem.lng,
-          type: "restaurant",
-        }),
+        body: JSON.stringify({ lat, lng, type: "restaurant" }),
       });
 
       const data = await res.json();
@@ -63,8 +73,48 @@ export default function ExplorarPage() {
     }
   }
 
+  function pegarLocalizacao() {
+    if (!("geolocation" in navigator)) {
+      setGeo({
+        status: "error",
+        message: "Seu navegador não suporta geolocalização.",
+      });
+      // carrega fallback
+      carregar(fallback.lat, fallback.lng);
+      return;
+    }
+
+    setGeo({ status: "loading" });
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const accuracy = pos.coords.accuracy;
+        const at = new Date().toLocaleString("pt-BR");
+
+        setGeo({ status: "ready", lat, lng, accuracy, at });
+
+        carregar(lat, lng);
+      },
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) {
+          setGeo({ status: "denied" });
+        } else {
+          setGeo({
+            status: "error",
+            message: err.message || "Erro ao obter localização.",
+          });
+        }
+        // fallback
+        carregar(fallback.lat, fallback.lng);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  }
+
   useEffect(() => {
-    carregar();
+    pegarLocalizacao();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -82,6 +132,8 @@ export default function ExplorarPage() {
     setFavoritos(novaLista.map((p) => p.place_id));
   }
 
+  const origem = coordsAtuais();
+
   return (
     <main className="max-w-4xl mx-auto px-4 py-6 space-y-5">
       <div className="p-5 rounded-3xl bg-white/10 border border-white/20">
@@ -89,12 +141,30 @@ export default function ExplorarPage() {
           <div>
             <h1 className="text-2xl font-bold text-white">🍽 Explorar (Famílias)</h1>
             <p className="text-white/70 mt-1">
-              Sugestões próximas para almoço, jantar e passeios rápidos em Londrina.
+              Sugestões próximas com base na sua localização.
             </p>
+
+            <div className="mt-2 text-xs text-white/60">
+              Coordenadas: {origem.lat.toFixed(4)}, {origem.lng.toFixed(4)}
+              {geo.status === "ready" && geo.accuracy != null && (
+                <> • precisão ~{Math.round(geo.accuracy)}m</>
+              )}
+            </div>
+
+            {geo.status === "denied" && (
+              <div className="mt-1 text-xs text-white/60">
+                Permissão negada -- usando Londrina como fallback.
+              </div>
+            )}
+            {geo.status === "error" && (
+              <div className="mt-1 text-xs text-white/60">
+                Erro: {geo.message} -- usando Londrina como fallback.
+              </div>
+            )}
           </div>
 
           <button
-            onClick={carregar}
+            onClick={pegarLocalizacao}
             className="shrink-0 bg-white text-blue-900 px-4 py-2 rounded-2xl font-semibold"
           >
             Atualizar
@@ -136,9 +206,8 @@ export default function ExplorarPage() {
         {places.map((place) => {
           const ativo = favoritos.includes(place.place_id) || isFavorito(place.place_id);
 
-          // Rota: origem = coords fixas, destino = nome + cidade (funciona como endereço)
           const originParam = `${origem.lat},${origem.lng}`;
-          const destinationParam = `${place.name}, Londrina PR`;
+          const destinationParam = `${place.name}${place.vicinity ? `, ${place.vicinity}` : ""}`;
 
           const rotaHref = `/rota?origin=${encodeURIComponent(
             originParam
