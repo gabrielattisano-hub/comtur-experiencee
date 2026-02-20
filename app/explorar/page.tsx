@@ -103,9 +103,15 @@ export default function ExplorarPage() {
   }, []);
 
   function OpenBadge({ open }: { open?: boolean }) {
-    if (open === true) return <span className="text-emerald-300">🟢 Aberto agora</span>;
-    if (open === false) return <span className="text-red-300">🔴 Fechado agora</span>;
-    return <span className="text-white/60">⏱ Horário não informado</span>;
+    if (open === true) return <span className="text-emerald-300">🟢 Aberto</span>;
+    if (open === false) return <span className="text-red-300">🔴 Fechado</span>;
+    return <span className="text-white/60">⏱</span>;
+  }
+
+  function irParaMapaNoApp(place: Place) {
+    if (!place.lat || !place.lng) return;
+    const name = encodeURIComponent(place.name ?? "");
+    router.push(`/mapa?lat=${place.lat}&lng=${place.lng}&name=${name}`);
   }
 
   return (
@@ -187,25 +193,33 @@ export default function ExplorarPage() {
                     <div className="text-sm text-white/70">{place.vicinity}</div>
                   )}
 
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="text-sm text-white/70">
-                      {typeof place.rating === "number" ? (
-                        <>
-                          ⭐ {place.rating} ({place.user_ratings_total ?? 0} avaliações)
-                        </>
-                      ) : (
-                        <>⭐ Sem avaliação</>
-                      )}
-                    </div>
+                  <div className="text-sm text-white/70">
+                    {typeof place.rating === "number" ? (
+                      <>
+                        ⭐ {place.rating} ({place.user_ratings_total ?? 0} avaliações)
+                      </>
+                    ) : (
+                      <>⭐ Sem avaliação</>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      onClick={() => irParaMapaNoApp(place)}
+                      className="flex-1 bg-white text-blue-900 px-3 py-2 rounded-xl font-semibold"
+                      disabled={!place.lat || !place.lng}
+                    >
+                      🗺 Mapa no app
+                    </button>
 
                     {place.maps_url ? (
                       <a
                         href={place.maps_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-sm bg-white text-blue-900 px-3 py-2 rounded-xl font-semibold"
+                        className="flex-1 text-center bg-white/10 border border-white/20 text-white px-3 py-2 rounded-xl font-semibold"
                       >
-                        Ver no mapa ↗
+                        ↗ Externo
                       </a>
                     ) : null}
                   </div>
