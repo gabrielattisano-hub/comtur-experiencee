@@ -79,7 +79,6 @@ export default function ExplorarPage() {
         status: "error",
         message: "Seu navegador não suporta geolocalização.",
       });
-      // carrega fallback
       carregar(fallback.lat, fallback.lng);
       return;
     }
@@ -94,7 +93,6 @@ export default function ExplorarPage() {
         const at = new Date().toLocaleString("pt-BR");
 
         setGeo({ status: "ready", lat, lng, accuracy, at });
-
         carregar(lat, lng);
       },
       (err) => {
@@ -106,7 +104,6 @@ export default function ExplorarPage() {
             message: err.message || "Erro ao obter localização.",
           });
         }
-        // fallback
         carregar(fallback.lat, fallback.lng);
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
@@ -204,14 +201,25 @@ export default function ExplorarPage() {
 
       <div className="grid grid-cols-1 gap-3">
         {places.map((place) => {
-          const ativo = favoritos.includes(place.place_id) || isFavorito(place.place_id);
+          const ativo =
+            favoritos.includes(place.place_id) || isFavorito(place.place_id);
 
           const originParam = `${origem.lat},${origem.lng}`;
-          const destinationParam = `${place.name}${place.vicinity ? `, ${place.vicinity}` : ""}`;
+          const destinationParam = `${place.name}${
+            place.vicinity ? `, ${place.vicinity}` : ""
+          }`;
 
           const rotaHref = `/rota?origin=${encodeURIComponent(
             originParam
           )}&destination=${encodeURIComponent(destinationParam)}`;
+
+          // ✅ Link "Ver detalhes" já passa dados úteis na query
+          const detalhesHref =
+            `/lugar/${encodeURIComponent(place.place_id)}` +
+            `?name=${encodeURIComponent(place.name)}` +
+            `&vicinity=${encodeURIComponent(place.vicinity ?? "")}` +
+            `&rating=${encodeURIComponent(String(place.rating ?? ""))}` +
+            `&urt=${encodeURIComponent(String(place.user_ratings_total ?? ""))}`;
 
           return (
             <div
@@ -220,7 +228,9 @@ export default function ExplorarPage() {
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="font-semibold text-white truncate">{place.name}</div>
+                  <div className="font-semibold text-white truncate">
+                    {place.name}
+                  </div>
 
                   {place.vicinity && (
                     <div className="text-sm text-white/70 mt-1 line-clamp-2">
@@ -255,9 +265,12 @@ export default function ExplorarPage() {
               </div>
 
               <div className="mt-4 flex gap-2">
-                <button className="flex-1 bg-white text-blue-900 py-2 rounded-2xl font-semibold">
+                <Link
+                  href={detalhesHref}
+                  className="flex-1 text-center bg-white text-blue-900 py-2 rounded-2xl font-semibold"
+                >
                   Ver detalhes
-                </button>
+                </Link>
 
                 <Link
                   href={rotaHref}
