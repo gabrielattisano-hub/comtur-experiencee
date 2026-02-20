@@ -19,6 +19,20 @@ type GeoState =
   | { status: "error"; message: string }
   | { status: "ready"; lat: number; lng: number; accuracy?: number; at: string };
 
+function sugestaoPorHorario(): string {
+  const h = new Date().getHours();
+  if (h >= 6 && h <= 10) {
+    return "Estou com a família e quero uma sugestão de café da manhã perto de mim. Recomende 3 opções com ambiente tranquilo e bom custo-benefício.";
+  }
+  if (h >= 11 && h <= 14) {
+    return "É hora do almoço e estou com crianças. Recomende 3 restaurantes perto de mim com boa avaliação e pratos que agradam família.";
+  }
+  if (h >= 15 && h <= 18) {
+    return "Quero um passeio leve com a família agora à tarde. Sugira 3 ideias perto de mim (parque, praça, atração tranquila).";
+  }
+  return "Quero uma sugestão para o início da noite com a família. Recomende 3 lugares perto de mim (jantar, sobremesa ou passeio) e explique rapidamente.";
+}
+
 export default function AssistentePage() {
   const [pergunta, setPergunta] = useState("");
   const [resposta, setResposta] = useState("");
@@ -34,13 +48,7 @@ export default function AssistentePage() {
 
   const [geo, setGeo] = useState<GeoState>({ status: "idle" });
 
-  // fallback Londrina
   const fallbackCoords = useMemo(() => ({ lat: -23.3045, lng: -51.1696 }), []);
-
-  function coordsAtuais() {
-    if (geo.status === "ready") return { lat: geo.lat, lng: geo.lng };
-    return fallbackCoords;
-  }
 
   async function carregarRestaurantes(lat: number, lng: number) {
     try {
@@ -90,7 +98,6 @@ export default function AssistentePage() {
 
         setGeo({ status: "ready", lat, lng, accuracy, at });
 
-        // busca lugares com sua localização real
         carregarRestaurantes(lat, lng);
       },
       (err) => {
@@ -108,13 +115,15 @@ export default function AssistentePage() {
   }
 
   useEffect(() => {
-    // carrega inicial (fallback londrina)
     carregarRestaurantes(fallbackCoords.lat, fallbackCoords.lng);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function enviar() {
+  async function enviar(texto?: string) {
     try {
+      const perguntaFinal = (texto ?? pergunta).trim();
+      if (!perguntaFinal) return;
+
       setStatus("loading");
       setErro("");
       setResposta("");
@@ -126,7 +135,7 @@ export default function AssistentePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          pergunta,
+          pergunta: perguntaFinal,
           contexto,
           preferencias,
           lugares: lugares.slice(0, 10),
@@ -149,25 +158,26 @@ export default function AssistentePage() {
     }
   }
 
-  const coords = coordsAtuais();
-
   return (
     <main className="max-w-4xl mx-auto px-4 py-6 space-y-4">
       <div className="p-5 rounded-3xl bg-white/10 border border-white/20">
         <h1 className="text-2xl font-bold text-white">🤖 Assistente IA</h1>
         <p className="text-white/70 mt-1">
-          Recomendações para famílias com base no horário + preferências + lugares perto de você.
+          Sugestões automáticas por horário + recomendações para famílias.
         </p>
-
-        <div className="mt-3 text-xs text-white/60">
-          Coordenadas atuais: {coords.lat.toFixed(4)}, {coords.lng.toFixed(4)}
-          {geo.status === "ready" && geo.accuracy != null && (
-            <> • precisão ~{Math.round(geo.accuracy)}m</>
-          )}
-        </div>
       </div>
 
-      <div className="p-4 rounded-3xl bg-white/10 border border-white/20 space-y-3">
+      {/* Sugestões rápidas */}
+      <div className="p-5 rounded-3xl bg-white/10 border border-white/20 space-y-3">
+        <div className="text-white font-semibold">⚡ Sugestões rápidas</div>
+
+        <button
+          onClick={() => enviar(sugestaoPorHorario())}
+          className="w-full bg-white text-blue-900 py-3 rounded-2xl font-semibold"
+        >
+          🎯 Me sugira algo agora (por horário)
+        </button>
+
         <button
           onClick={usarMinhaLocalizacao}
           className="w-full bg-white/10 border border-white/20 py-3 rounded-2xl font-semibold text-white"
@@ -184,6 +194,16 @@ export default function AssistentePage() {
           <div className="text-sm text-white/70">Erro: {geo.message}</div>
         )}
 
+        <div className="text-xs text-white/60">
+          Restaurantes carregados:{" "}
+          {lugaresStatus === "ready" ? lugares.length : lugaresStatus}
+        </div>
+      </div>
+
+      {/* Pergunta manual */}
+      <div className="p-5 rounded-3xl bg-white/10 border border-white/20 space-y-3">
+        <div className="text-white font-semibold">✍️ Perguntar manualmente</div>
+
         <textarea
           value={pergunta}
           onChange={(e) => setPergunta(e.target.value)}
@@ -192,17 +212,12 @@ export default function AssistentePage() {
         />
 
         <button
-          onClick={enviar}
+          onClick={() => enviar()}
           disabled={!pergunta || status === "loading"}
           className="w-full bg-white text-blue-900 py-3 rounded-2xl font-semibold disabled:opacity-60"
         >
           {status === "loading" ? "Pensando..." : "Enviar"}
         </button>
-
-        <div className="text-xs text-white/60">
-          Restaurantes carregados:{" "}
-          {lugaresStatus === "ready" ? lugares.length : lugaresStatus}
-        </div>
       </div>
 
       {status === "error" && (
