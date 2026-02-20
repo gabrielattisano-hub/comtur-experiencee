@@ -7,19 +7,43 @@ type Place = {
   rating?: number;
   user_ratings_total?: number;
   open_now?: boolean;
+  lat?: number;
+  lng?: number;
+  maps_url?: string;
+  photo_url?: string;
 };
 
-function pickTopRestaurants(results: any[]): Place[] {
+function transformPlaces(results: any[], apiKey: string): Place[] {
   return (results || [])
-    .map((p) => ({
-      place_id: p.place_id,
-      name: p.name,
-      vicinity: p.vicinity,
-      rating: p.rating,
-      user_ratings_total: p.user_ratings_total,
-      open_now: p.opening_hours?.open_now,
-    }))
-    .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
+    .map((p) => {
+      const lat = p.geometry?.location?.lat;
+      const lng = p.geometry?.location?.lng;
+
+      const photoReference = p.photos?.[0]?.photo_reference;
+
+      return {
+        place_id: p.place_id,
+        name: p.name,
+        vicinity: p.vicinity,
+        rating: p.rating,
+        user_ratings_total: p.user_ratings_total,
+        open_now: p.opening_hours?.open_now,
+        lat,
+        lng,
+        maps_url: lat && lng
+          ? `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
+          : undefined,
+        photo_url: photoReference
+          ? `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photo_reference=${photoReference}&key=${apiKey}`
+          : undefined,
+      };
+    })
+    // Prioriza abertos + melhor nota
+    .sort((a, b) => {
+      if (a.open_now && !b.open_now) return -1;
+      if (!a.open_now && b.open_now) return 1;
+      return (b.rating ?? 0) - (a.rating ?? 0);
+    })
     .slice(0, 10);
 }
 
@@ -49,7 +73,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const radius = Number(body?.radius ?? 1500); // metros
+    const radius = Number(body?.radius ?? 1500);
     const type = String(body?.type ?? "restaurant");
 
     const url =
@@ -59,7 +83,7 @@ export async function POST(req: Request) {
       `&type=${encodeURIComponent(type)}` +
       `&key=${encodeURIComponent(apiKey)}`;
 
-    const r = await fetch(url, { method: "GET" });
+    const r = await fetch(url);
     const data = await r.json();
 
     if (data.status && data.status !== "OK") {
@@ -69,7 +93,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const top = pickTopRestaurants(data.results);
+    const top = transformPlaces(data.results, apiKey);
 
     return Response.json({
       ok: true,
