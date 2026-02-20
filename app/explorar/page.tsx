@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { FavPlace, toggleFavorito, isFavorito } from "@/lib/favoritos";
 
 type Place = {
@@ -28,8 +29,8 @@ export default function ExplorarPage() {
   );
   const [erro, setErro] = useState("");
 
-  // Exemplo fixo de Londrina (depois a gente liga com geolocalização real)
-  const coords = useMemo(() => ({ lat: -23.3045, lng: -51.1696 }), []);
+  // Exemplo fixo de Londrina (depois ligamos na geolocalização real)
+  const origem = useMemo(() => ({ lat: -23.3045, lng: -51.1696 }), []);
 
   async function carregar() {
     try {
@@ -39,7 +40,11 @@ export default function ExplorarPage() {
       const res = await fetch("/api/places", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lat: coords.lat, lng: coords.lng, type: "restaurant" }),
+        body: JSON.stringify({
+          lat: origem.lat,
+          lng: origem.lng,
+          type: "restaurant",
+        }),
       });
 
       const data = await res.json();
@@ -59,8 +64,6 @@ export default function ExplorarPage() {
   }
 
   useEffect(() => {
-    // carrega favoritos existentes
-    setFavoritos([]);
     carregar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -81,13 +84,10 @@ export default function ExplorarPage() {
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-6 space-y-5">
-      {/* Header */}
       <div className="p-5 rounded-3xl bg-white/10 border border-white/20">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-white">
-              🍽 Explorar (Famílias)
-            </h1>
+            <h1 className="text-2xl font-bold text-white">🍽 Explorar (Famílias)</h1>
             <p className="text-white/70 mt-1">
               Sugestões próximas para almoço, jantar e passeios rápidos em Londrina.
             </p>
@@ -109,15 +109,11 @@ export default function ExplorarPage() {
             🧒 Kids friendly
           </span>
           <span className="px-3 py-1 rounded-full bg-white/10 border border-white/15 text-white/80">
-            🅿️ Fácil acesso
-          </span>
-          <span className="px-3 py-1 rounded-full bg-white/10 border border-white/15 text-white/80">
             ⭐ Top avaliados
           </span>
         </div>
       </div>
 
-      {/* Estados */}
       {status === "loading" && (
         <div className="p-4 rounded-2xl bg-white/10 border border-white/20 text-white/80">
           Buscando restaurantes próximos...
@@ -136,10 +132,17 @@ export default function ExplorarPage() {
         </div>
       )}
 
-      {/* Cards */}
       <div className="grid grid-cols-1 gap-3">
         {places.map((place) => {
           const ativo = favoritos.includes(place.place_id) || isFavorito(place.place_id);
+
+          // Rota: origem = coords fixas, destino = nome + cidade (funciona como endereço)
+          const originParam = `${origem.lat},${origem.lng}`;
+          const destinationParam = `${place.name}, Londrina PR`;
+
+          const rotaHref = `/rota?origin=${encodeURIComponent(
+            originParam
+          )}&destination=${encodeURIComponent(destinationParam)}`;
 
           return (
             <div
@@ -148,9 +151,7 @@ export default function ExplorarPage() {
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="font-semibold text-white truncate">
-                    {place.name}
-                  </div>
+                  <div className="font-semibold text-white truncate">{place.name}</div>
 
                   {place.vicinity && (
                     <div className="text-sm text-white/70 mt-1 line-clamp-2">
@@ -184,14 +185,17 @@ export default function ExplorarPage() {
                 </button>
               </div>
 
-              {/* CTA (placeholder) */}
               <div className="mt-4 flex gap-2">
                 <button className="flex-1 bg-white text-blue-900 py-2 rounded-2xl font-semibold">
                   Ver detalhes
                 </button>
-                <button className="flex-1 bg-white/10 border border-white/20 py-2 rounded-2xl font-semibold text-white">
+
+                <Link
+                  href={rotaHref}
+                  className="flex-1 text-center bg-white/10 border border-white/20 py-2 rounded-2xl font-semibold text-white"
+                >
                   Traçar rota
-                </button>
+                </Link>
               </div>
             </div>
           );
