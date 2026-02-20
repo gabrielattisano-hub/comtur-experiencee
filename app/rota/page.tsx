@@ -6,79 +6,84 @@ import { Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 
 function RotaContent() {
-  const searchParams = useSearchParams();
+  const sp = useSearchParams();
 
-  const origemLat = useMemo(
-    () => Number(searchParams.get("origemLat")),
-    [searchParams]
-  );
-  const origemLng = useMemo(
-    () => Number(searchParams.get("origemLng")),
-    [searchParams]
-  );
-  const destinoLat = useMemo(
-    () => Number(searchParams.get("destinoLat")),
-    [searchParams]
-  );
-  const destinoLng = useMemo(
-    () => Number(searchParams.get("destinoLng")),
-    [searchParams]
-  );
+  const origem = useMemo(() => sp.get("origem") ?? "", [sp]);
+  const destino = useMemo(() => sp.get("destino") ?? "", [sp]);
 
-  const label = useMemo(
-    () => searchParams.get("label") ?? "Rota",
-    [searchParams]
-  );
+  const ok = origem.trim().length > 0 && destino.trim().length > 0;
 
-  // Se não tiver coords, mostra mensagem
-  const okOrigem = Number.isFinite(origemLat) && Number.isFinite(origemLng);
-  const okDestino = Number.isFinite(destinoLat) && Number.isFinite(destinoLng);
-
-  if (!okOrigem || !okDestino) {
+  if (!ok) {
     return (
       <main style={{ padding: 16 }}>
         <h1>Rota</h1>
-        <p>Faltou origem/destino na URL.</p>
+        <p>Faltou origem e/ou destino na URL.</p>
         <p style={{ opacity: 0.7 }}>
-          Esperado: origemLat, origemLng, destinoLat, destinoLng
+          Exemplo: ?origem=Av%20X&destino=Rua%20Y
         </p>
       </main>
     );
   }
 
-  // Direção no Google Maps
-  const mapsDirectionsUrl =
+  const link =
     `https://www.google.com/maps/dir/?api=1` +
-    `&origin=${origemLat},${origemLng}` +
-    `&destination=${destinoLat},${destinoLng}` +
+    `&origin=${encodeURIComponent(origem)}` +
+    `&destination=${encodeURIComponent(destino)}` +
     `&travelmode=driving`;
+
+  const embed =
+    `https://www.google.com/maps?output=embed` +
+    `&saddr=${encodeURIComponent(origem)}` +
+    `&daddr=${encodeURIComponent(destino)}`;
 
   return (
     <main style={{ padding: 16 }}>
       <h1 style={{ marginBottom: 8 }}>Rota</h1>
+
       <p style={{ marginBottom: 12 }}>
-        <strong>{label}</strong>
+        <strong>Origem:</strong> {origem}
         <br />
-        Origem: {origemLat.toFixed(6)}, {origemLng.toFixed(6)}
-        <br />
-        Destino: {destinoLat.toFixed(6)}, {destinoLng.toFixed(6)}
+        <strong>Destino:</strong> {destino}
       </p>
 
-      <a
-        href={mapsDirectionsUrl}
-        target="_blank"
-        rel="noreferrer"
+      <div
         style={{
-          display: "inline-block",
-          padding: "12px 16px",
-          borderRadius: 12,
+          width: "100%",
+          height: "70vh",
+          borderRadius: 14,
+          overflow: "hidden",
           border: "1px solid #ddd",
-          textDecoration: "none",
-          fontWeight: 600,
+          background: "#fff",
         }}
       >
-        Abrir rota no Google Maps
-      </a>
+        <iframe
+          title="Rota no Google Maps"
+          src={embed}
+          width="100%"
+          height="100%"
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+          style={{ border: 0 }}
+        />
+      </div>
+
+      <div style={{ marginTop: 12 }}>
+        <a
+          href={link}
+          target="_blank"
+          rel="noreferrer"
+          style={{
+            display: "inline-block",
+            padding: "12px 16px",
+            borderRadius: 12,
+            border: "1px solid #ddd",
+            textDecoration: "none",
+            fontWeight: 600,
+          }}
+        >
+          Abrir rota no Google Maps (externo)
+        </a>
+      </div>
     </main>
   );
 }
