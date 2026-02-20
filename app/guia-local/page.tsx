@@ -1,135 +1,123 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Topbar from "@/components/Topbar";
 
-type Place = {
-  place_id: string;
-  name: string;
-  vicinity?: string;
-  rating?: number;
-  user_ratings_total?: number;
-  open_now?: boolean;
+type Localizacao = {
+  lat: number;
+  lng: number;
 };
 
 export default function GuiaLocalPage() {
-  const [places, setPlaces] = useState<Place[]>([]);
-  const [status, setStatus] = useState<"idle" | "loading" | "error" | "ready">(
-    "idle"
-  );
-  const [error, setError] = useState("");
+  const [localizacao, setLocalizacao] = useState<Localizacao | null>(null);
+  const [resposta, setResposta] = useState("");
+  const [status, setStatus] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >("idle");
+  const [erro, setErro] = useState("");
 
-  async function carregar() {
+  useEffect(() => {
+    pegarLocalizacao();
+    // eslint-disable-next-line
+  }, []);
+
+  function pegarLocalizacao() {
     if (!("geolocation" in navigator)) {
+      setErro("Geolocalização não suportada.");
       setStatus("error");
-      setError("Geolocalização não suportada.");
       return;
     }
 
     setStatus("loading");
-    setError("");
 
     navigator.geolocation.getCurrentPosition(
-      async (pos) => {
+      (pos) => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
 
-        try {
-          const res = await fetch("/api/guia-local", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              lat,
-              lng,
-              radius: 2500,
-              type: "tourist_attraction",
-            }),
-          });
-
-          const data = await res.json();
-
-          if (!res.ok) {
-            setStatus("error");
-            setError(data?.error || "Erro ao buscar locais.");
-            return;
-          }
-
-          setPlaces(Array.isArray(data?.results) ? data.results : []);
-          setStatus("ready");
-        } catch (e: any) {
-          setStatus("error");
-          setError(e?.message || "Erro inesperado.");
-        }
+        setLocalizacao({ lat, lng });
+        chamarGuia(lat, lng);
       },
-      (err) => {
-        setStatus("error");
-        setError(err?.message || "Permissão negada / erro ao obter localização.");
+      () => {
+        // fallback para cidade padrão
+        chamarGuia(null, null);
       }
     );
   }
 
-  useEffect(() => {
-    carregar();
-  }, []);
+  async function chamarGuia(lat: number | null, lng: number | null) {
+    try {
+      setStatus("loading");
+
+      const res = await fetch("/api/guia-local", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          lat,
+          lng,
+          cidade: "Londrina PR",
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setErro(data?.error || "Erro ao chamar guia.");
+        setStatus("error");
+        return;
+      }
+
+      setResposta(data?.resposta || "Sem resposta.");
+      setStatus("ready");
+    } catch (e: any) {
+      setErro(e?.message || "Erro inesperado.");
+      setStatus("error");
+    }
+  }
 
   return (
-    <div className="min-h-screen p-6 max-w-3xl mx-auto text-white">
-      <h1 className="text-2xl font-bold mb-2">📍 Guia Local (Perto de Mim)</h1>
-      <p className="text-white/70 mb-6">
-        Mostrando pontos turísticos próximos usando sua localização.
-      </p>
+    <div className="min-h-screen">
+      <Topbar title="Guia Local Inteligente" />
 
-      <button
-        onClick={carregar}
-        className="w-full bg-white text-blue-900 py-3 rounded-2xl font-semibold mb-6"
-      >
-        🔄 Atualizar
-      </button>
+      <main className="max-w-4xl mx-auto px-4 py-6 space-y-4">
+        <div className="p-5 rounded-3xl bg-white/10 border border-white/20">
+          <h1 className="text-2xl font-bold text-white">
+            🧭 Guia Local COMTUR
+          </h1>
+          <p className="text-white/70 mt-1">
+            Descubra onde você está e o que fazer ao redor com sua família.
+          </p>
 
-      {status === "loading" && (
-        <div className="p-4 rounded-2xl bg-white/10 border border-white/20">
-          Carregando locais próximos...
+          <button
+            onClick={pegarLocalizacao}
+            className="mt-4 w-full bg-yellow-400 text-slate-900 py-3 rounded-2xl font-semibold"
+          >
+            📍 Atualizar localização
+          </button>
         </div>
-      )}
 
-      {status === "error" && (
-        <div className="p-4 rounded-2xl bg-white/10 border border-white/20">
-          <b>Erro:</b> {error}
-        </div>
-      )}
+        {status === "loading" && (
+          <div className="p-5 rounded-3xl bg-white/10 border border-white/20 text-white">
+            Carregando informações do local...
+          </div>
+        )}
 
-      {status === "ready" && places.length === 0 && (
-        <div className="p-4 rounded-2xl bg-white/10 border border-white/20">
-          Nenhum lugar encontrado por perto.
-        </div>
-      )}
+        {status === "error" && (
+          <div className="p-5 rounded-3xl bg-red-500/20 border border-red-400/30 text-white">
+            Erro: {erro}
+          </div>
+        )}
 
-      {status === "ready" && places.length > 0 && (
-        <div className="space-y-3">
-          {places.map((p) => (
-            <div
-              key={p.place_id}
-              className="p-4 rounded-2xl bg-white/10 border border-white/20"
-            >
-              <div className="font-semibold">{p.name}</div>
-
-              {p.vicinity && (
-                <div className="text-sm text-white/70">{p.vicinity}</div>
-              )}
-
-              <div className="text-sm text-white/70 mt-2">
-                {typeof p.rating === "number" && (
-                  <div>
-                    ⭐ {p.rating} ({p.user_ratings_total ?? 0} avaliações)
-                  </div>
-                )}
-                {typeof p.open_now === "boolean" && (
-                  <div>{p.open_now ? "✅ Aberto agora" : "❌ Fechado agora"}</div>
-                )}
-              </div>
+        {status === "ready" && (
+          <div className="p-5 rounded-3xl bg-white/10 border border-white/20">
+            <div className="text-white whitespace-pre-wrap">
+              {resposta}
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        )}
+      </main>
     </div>
   );
 }
