@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { montarContextoFamilias } from "@/lib/contexto";
+import { getPreferencias } from "@/lib/preferencias";
 
 type Place = {
   place_id: string;
@@ -33,7 +34,7 @@ export default function AssistentePage() {
 
   const [geo, setGeo] = useState<GeoState>({ status: "idle" });
 
-  // fallback: Londrina
+  // fallback Londrina
   const fallbackCoords = useMemo(() => ({ lat: -23.3045, lng: -51.1696 }), []);
 
   function coordsAtuais() {
@@ -119,6 +120,7 @@ export default function AssistentePage() {
       setResposta("");
 
       const contexto = montarContextoFamilias();
+      const preferencias = getPreferencias();
 
       const res = await fetch("/api/ai-contexto", {
         method: "POST",
@@ -126,6 +128,7 @@ export default function AssistentePage() {
         body: JSON.stringify({
           pergunta,
           contexto,
+          preferencias,
           lugares: lugares.slice(0, 10),
         }),
       });
@@ -153,7 +156,7 @@ export default function AssistentePage() {
       <div className="p-5 rounded-3xl bg-white/10 border border-white/20">
         <h1 className="text-2xl font-bold text-white">🤖 Assistente IA</h1>
         <p className="text-white/70 mt-1">
-          Recomendações para famílias com base no horário + lugares perto de você.
+          Recomendações para famílias com base no horário + preferências + lugares perto de você.
         </p>
 
         <div className="mt-3 text-xs text-white/60">
