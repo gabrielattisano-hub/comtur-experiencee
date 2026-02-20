@@ -10,7 +10,7 @@ export default function BottomNav() {
     { href: "/", icon: "🏠", label: "Início" },
     { href: "/explorar", icon: "🗺️", label: "Explorar" },
     { href: "/assistente", icon: "🤖", label: "IA" },
-    { href: "/feed", icon: "📸", label: "Feed" },
+    { href: "/mais", icon: "➕", label: "Mais" },
     { href: "/perfil", icon: "👤", label: "Perfil" },
   ];
 
