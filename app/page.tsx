@@ -1,21 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import Card from "@/components/Card";
 import { theme } from "@/styles/theme";
 
 export default function HomePage() {
   return (
-    <main style={{ padding: 20, display: "flex", flexDirection: "column", gap: 20 }}>
-
+    <main
+      style={{
+        padding: 20,
+        display: "flex",
+        flexDirection: "column",
+        gap: 20,
+      }}
+    >
       {/* HERO */}
-      <div
-        style={{
-          background: theme.colors.card,
-          border: `1px solid ${theme.colors.border}`,
-          borderRadius: theme.radius.xl,
-          padding: 24,
-        }}
-      >
+      <Card>
         <div style={{ fontSize: 12, opacity: 0.7 }}>
           COMTUR EXPERIENCE
         </div>
@@ -28,10 +28,9 @@ export default function HomePage() {
           Descubra restaurantes, roteiros e experiências com ajuda da IA,
           adaptado ao seu momento e localização.
         </p>
-      </div>
+      </Card>
 
       {/* BOTÕES PRINCIPAIS */}
-
       <Link href="/explorar" style={buttonStyle}>
         📍 Explorar perto de mim
       </Link>
@@ -47,7 +46,6 @@ export default function HomePage() {
       <Link href="/roteiros" style={buttonStyle}>
         💾 Meus roteiros
       </Link>
-
     </main>
   );
 }
