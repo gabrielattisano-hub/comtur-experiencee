@@ -2,6 +2,7 @@
 
 import Card from "@/components/Card";
 import Button from "@/components/Button";
+import { theme } from "@/styles/theme";
 
 export default function HomePage() {
   return (
@@ -10,41 +11,52 @@ export default function HomePage() {
         padding: 20,
         display: "flex",
         flexDirection: "column",
-        gap: 20,
+        gap: 24,
       }}
     >
-      {/* HERO */}
-      <Card>
-        <div style={{ fontSize: 12, opacity: 0.7 }}>
+      {/* HERO PREMIUM */}
+      <div
+        style={{
+          background: `linear-gradient(135deg, ${theme.colors.primary}, ${theme.colors.primaryDark})`,
+          borderRadius: theme.radius.xl,
+          padding: 28,
+          color: "#fff",
+        }}
+      >
+        <div style={{ fontSize: 12, opacity: 0.8 }}>
           COMTUR EXPERIENCE
         </div>
 
-        <h1 style={{ fontSize: 26, marginTop: 8 }}>
-          Turismo inteligente para famílias
+        <h1 style={{ fontSize: 28, marginTop: 8, lineHeight: 1.2 }}>
+          Descubra o melhor da cidade com IA
         </h1>
 
-        <p style={{ marginTop: 12, opacity: 0.7 }}>
-          Descubra restaurantes, roteiros e experiências com ajuda da IA,
-          adaptado ao seu momento e localização.
+        <p style={{ marginTop: 14, opacity: 0.9 }}>
+          Roteiros inteligentes, restaurantes próximos e experiências
+          personalizadas para famílias.
         </p>
+      </div>
+
+      {/* AÇÕES */}
+      <Card>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <Button href="/explorar">
+            📍 Explorar perto de mim
+          </Button>
+
+          <Button href="/guia-local">
+            🤖 Guia inteligente
+          </Button>
+
+          <Button href="/pacotes">
+            🎒 Pacotes recomendados
+          </Button>
+
+          <Button href="/roteiros">
+            💾 Meus roteiros
+          </Button>
+        </div>
       </Card>
-
-      {/* BOTÕES PRINCIPAIS */}
-      <Button href="/explorar">
-        📍 Explorar perto de mim
-      </Button>
-
-      <Button href="/guia-local">
-        🤖 Guia inteligente
-      </Button>
-
-      <Button href="/pacotes">
-        🎒 Pacotes recomendados
-      </Button>
-
-      <Button href="/roteiros">
-        💾 Meus roteiros
-      </Button>
     </main>
   );
 }
