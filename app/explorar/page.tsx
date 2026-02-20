@@ -38,27 +38,34 @@ export default function ExplorarPage() {
 
       const res = await fetch("/api/places", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
           lat,
           lng,
           type: "restaurant",
+          radius: 1500,
         }),
       });
 
-      const data = await res.json().catch(() => ({}));
+      const data = await res.json();
 
       if (!res.ok) {
         setPlacesStatus("error");
-        setPlacesError(data?.error || "Erro ao buscar lugares.");
+        setPlacesError(
+          data?.error
+            ? `${data.error}${data?.details ? ` -- ${data.details}` : ""}`
+            : "Erro ao buscar lugares."
+        );
         return;
       }
 
-      setPlaces(Array.isArray(data?.results) ? (data.results as Place[]) : []);
+      setPlaces(Array.isArray(data?.results) ? data.results : []);
       setPlacesStatus("ready");
-    } catch (e: unknown) {
+    } catch (e: any) {
       setPlacesStatus("error");
-      setPlacesError(e instanceof Error ? e.message : "Erro inesperado.");
+      setPlacesError(e?.message || "Erro inesperado.");
     }
   }
 
@@ -84,12 +91,9 @@ export default function ExplorarPage() {
 
         setGeo({ status: "ready", lat, lng, accuracy, at });
 
-        // busca automático
         buscarRestaurantes(lat, lng);
       },
       (err) => {
-        // GeolocationPositionError nem sempre tipa bem no TS em alguns builds,
-        // então tratamos de forma defensiva:
         const code = (err as any)?.code;
         const message = (err as any)?.message;
 
@@ -108,12 +112,14 @@ export default function ExplorarPage() {
 
   useEffect(() => {
     pegarLocalizacao();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <div className="min-h-screen">
-      <Topbar title="Explorar (Perto de Mim)" onBack={() => router.back()} />
+      <Topbar
+        title="Explorar (Perto de Mim)"
+        onBack={() => router.back()}
+      />
 
       <main className="max-w-4xl mx-auto px-4 py-6 space-y-4">
         <button
@@ -164,15 +170,20 @@ export default function ExplorarPage() {
                 key={place.place_id}
                 className="p-4 rounded-2xl bg-white/10 border border-white/20"
               >
-                <div className="font-semibold text-white">{place.name}</div>
+                <div className="font-semibold text-white">
+                  {place.name}
+                </div>
 
                 {place.vicinity && (
-                  <div className="text-sm text-white/70">{place.vicinity}</div>
+                  <div className="text-sm text-white/70">
+                    {place.vicinity}
+                  </div>
                 )}
 
                 {typeof place.rating === "number" && (
                   <div className="text-sm text-white/70 mt-1">
-                    ⭐ {place.rating} ({place.user_ratings_total ?? 0} avaliações)
+                    ⭐ {place.rating} (
+                    {place.user_ratings_total ?? 0} avaliações)
                   </div>
                 )}
 
