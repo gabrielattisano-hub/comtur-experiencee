@@ -27,7 +27,7 @@ type PlaceDetailsReal = {
   };
   rating?: number;
   user_ratings_total?: number;
-  url?: string; // link do google
+  url?: string;
 };
 
 function LugarInner() {
@@ -37,7 +37,6 @@ function LugarInner() {
 
   const id = params?.id ? String(params.id) : "";
 
-  // base via query (para aparecer instant)
   const name = sp.get("name") ?? "";
   const vicinity = sp.get("vicinity") ?? "";
   const rating = sp.get("rating") ? Number(sp.get("rating")) : undefined;
@@ -63,6 +62,11 @@ function LugarInner() {
     "idle" | "loading" | "ready" | "error"
   >("idle");
   const [realError, setRealError] = useState("");
+
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoStatus, setPhotoStatus] = useState<
+    "idle" | "loading" | "ready" | "none" | "error"
+  >("idle");
 
   function handleFav() {
     const p: FavPlace = {
@@ -104,8 +108,40 @@ function LugarInner() {
     }
   }
 
+  async function carregarFoto() {
+    try {
+      setPhotoStatus("loading");
+      setPhotoUrl(null);
+
+      const res = await fetch("/api/place-photo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ placeId: base.place_id, maxwidth: 1400 }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setPhotoStatus("error");
+        return;
+      }
+
+      if (data?.hasPhoto && data?.photoUrl) {
+        setPhotoUrl(String(data.photoUrl));
+        setPhotoStatus("ready");
+      } else {
+        setPhotoStatus("none");
+      }
+    } catch {
+      setPhotoStatus("error");
+    }
+  }
+
   useEffect(() => {
-    if (base.place_id) carregarDetalhes();
+    if (base.place_id) {
+      carregarDetalhes();
+      carregarFoto();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [base.place_id]);
 
@@ -127,6 +163,18 @@ function LugarInner() {
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-6 space-y-4">
+      {/* FOTO */}
+      {photoStatus === "ready" && photoUrl && (
+        <div className="rounded-3xl overflow-hidden border border-white/20 bg-white/5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={photoUrl}
+            alt={`Foto de ${titleName}`}
+            className="w-full h-56 object-cover"
+          />
+        </div>
+      )}
+
       <div className="p-5 rounded-3xl bg-white/10 border border-white/20">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -149,6 +197,10 @@ function LugarInner() {
                 </span>
               )}
             </div>
+
+            {photoStatus === "loading" && (
+              <div className="mt-2 text-xs text-white/60">Carregando foto...</div>
+            )}
           </div>
 
           <button
@@ -231,16 +283,17 @@ function LugarInner() {
         {realStatus === "ready" && real?.opening_hours?.weekday_text?.length ? (
           <ul className="mt-3 space-y-1 text-sm text-white/80">
             {real.opening_hours.weekday_text.map((line) => (
-              <li key={line} className="px-3 py-2 rounded-2xl bg-black/30 border border-white/10">
+              <li
+                key={line}
+                className="px-3 py-2 rounded-2xl bg-black/30 border border-white/10"
+              >
                 {line}
               </li>
             ))}
           </ul>
         ) : (
           realStatus === "ready" && (
-            <div className="mt-2 text-white/70 text-sm">
-              Horários não disponíveis.
-            </div>
+            <div className="mt-2 text-white/70 text-sm">Horários não disponíveis.</div>
           )
         )}
       </div>
