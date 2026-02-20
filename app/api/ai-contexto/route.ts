@@ -13,6 +13,12 @@ type ContextoApp = {
   foco: string;
 };
 
+type Preferencias = {
+  modoFamilia: boolean;
+  orcamento: "baixo" | "medio" | "alto";
+  idioma: "pt" | "en" | "es";
+};
+
 type Lugar = {
   name: string;
   rating?: number;
@@ -20,15 +26,27 @@ type Lugar = {
   vicinity?: string;
 };
 
+function textoOrcamento(o: Preferencias["orcamento"]) {
+  if (o === "baixo") return "baixo custo / economia";
+  if (o === "alto") return "premium / melhor experiência";
+  return "custo-benefício";
+}
+
+function textoIdioma(i: Preferencias["idioma"]) {
+  if (i === "en") return "Responda em inglês (English).";
+  if (i === "es") return "Responda em espanhol (Español).";
+  return "Responda em português.";
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
     const pergunta: string = body?.pergunta ?? "";
     const contexto: ContextoApp | undefined = body?.contexto;
-    const lugares: Lugar[] = Array.isArray(body?.lugares)
-      ? body.lugares
-      : [];
+    const preferencias: Preferencias | undefined = body?.preferencias;
+
+    const lugares: Lugar[] = Array.isArray(body?.lugares) ? body.lugares : [];
 
     if (!process.env.OPENAI_API_KEY) {
       return Response.json(
@@ -47,7 +65,7 @@ export async function POST(req: Request) {
     const resumoLugares =
       lugares.length > 0
         ? lugares
-            .slice(0, 5)
+            .slice(0, 6)
             .map(
               (l) =>
                 `- ${l.name} (nota ${l.rating ?? "-"}, ${
@@ -58,31 +76,50 @@ export async function POST(req: Request) {
         : "Nenhum restaurante próximo disponível.";
 
     const contextoTexto = contexto
-      ? `
-Horário local: ${contexto.horaLocal}
+      ? `Horário local: ${contexto.horaLocal}
 Período do dia: ${contexto.periodo}
-Foco: ${contexto.foco}
-`
-      : "";
+Foco do app: ${contexto.foco}`
+      : "Sem contexto de horário.";
+
+    const modoFamiliaTexto =
+      preferencias?.modoFamilia === false
+        ? "O usuário desativou o modo família. Ainda assim, mantenha linguagem respeitosa e segura."
+        : "Modo família ATIVADO: priorize opções adequadas para crianças e ambientes tranquilos.";
+
+    const preferenciaTexto = preferencias
+      ? `Preferências do usuário:
+- Modo família: ${preferencias.modoFamilia ? "ativado" : "desativado"}
+- Orçamento: ${textoOrcamento(preferencias.orcamento)}
+- Idioma: ${preferencias.idioma}`
+      : "Sem preferências do usuário.";
+
+    const idiomaInstrucao = preferencias
+      ? textoIdioma(preferencias.idioma)
+      : "Responda em português.";
 
     const prompt = `
-Você é o assistente inteligente da COMTUR EXPERIENCE.
+Você é o assistente inteligente de viagens da COMTUR EXPERIENCE.
 
-Regras:
-- Responder em português.
-- Focar em famílias.
-- Sugerir roteiro por horários quando fizer sentido.
-- Nunca mencionar crimes, violência ou notícias negativas.
-- Ser objetivo e estratégico.
+Regras obrigatórias:
+- ${idiomaInstrucao}
+- Foco em famílias quando Modo Família estiver ativado.
+- Sugira roteiro por horários quando fizer sentido (manhã / almoço / tarde / noite).
+- Nunca mencione crimes, violência, tragédias ou notícias negativas.
+- Seja objetivo, prático e com linguagem de app.
+- Se faltar dado, faça suposições razoáveis e deixe claro.
 
 ${contextoTexto}
 
-Restaurantes próximos disponíveis:
+${preferenciaTexto}
+
+${modoFamiliaTexto}
+
+Lugares próximos disponíveis (ranking por avaliação):
 ${resumoLugares}
 
 Pergunta do usuário:
 ${pergunta}
-`;
+`.trim();
 
     const response = await client.responses.create({
       model: "gpt-4o-mini",
