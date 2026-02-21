@@ -18,7 +18,7 @@ export default function PacotesPage() {
           {pacotesLondrinaFamilias.map((pacote) => (
             <div
               key={pacote.id}
-              className="bg-zinc-900 rounded-xl p-6 border border-zinc-800 hover:border-zinc-600 transition"
+              className="bg-zinc-900 rounded-xl p-6 border border-zinc-800"
             >
               <h2 className="text-xl font-semibold mb-2">
                 {pacote.titulo}
@@ -42,14 +42,12 @@ export default function PacotesPage() {
                 </p>
               )}
 
-              <div className="flex gap-3 mt-4">
-                <Link
-                  href={`/pacotes/${pacote.id}`}
-                  className="bg-white text-black px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-200 transition"
-                >
-                  Ver detalhes
-                </Link>
-              </div>
+              <Link
+                href="#"
+                className="bg-white text-black px-4 py-2 rounded-lg text-sm font-medium"
+              >
+                Ver detalhes
+              </Link>
             </div>
           ))}
         </div>
