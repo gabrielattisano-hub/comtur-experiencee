@@ -1,8 +1,11 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
-export default function MapaClient() {
+function MapaConteudo() {
   const searchParams = useSearchParams();
 
   const lat = searchParams.get("lat");
@@ -29,5 +32,13 @@ export default function MapaClient() {
         />
       </div>
     </main>
+  );
+}
+
+export default function MapaPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 16 }}>Carregando mapa...</div>}>
+      <MapaConteudo />
+    </Suspense>
   );
 }
