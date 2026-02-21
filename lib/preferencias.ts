@@ -1,30 +1,26 @@
 export type Preferencias = {
-  nome?: string;
-  cidadeBase?: string; // ex: "Londrina"
-  estiloViagem?: string; // ex: "Família", "Casal", "Aventura"
-  orcamento?: string; // ex: "Econômico", "Médio", "Premium"
-  interesses?: string[]; // ex: ["parques", "cafés", "passeios"]
+  nome: string;
+  cidade: string;
+  comCriancas: boolean;
 };
 
-const KEY = "comtur_preferencias_v1";
+const KEY = "comtur_preferencias";
 
 export function getPreferencias(): Preferencias | null {
   if (typeof window === "undefined") return null;
+
+  const raw = localStorage.getItem(KEY);
+  if (!raw) return null;
+
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as Preferencias;
+    return JSON.parse(raw);
   } catch {
     return null;
   }
 }
 
-export function savePreferencias(data: Preferencias): void {
+export function savePreferencias(data: Preferencias) {
   if (typeof window === "undefined") return;
-  localStorage.setItem(KEY, JSON.stringify(data));
-}
 
-export function clearPreferencias(): void {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(KEY);
+  localStorage.setItem(KEY, JSON.stringify(data));
 }
