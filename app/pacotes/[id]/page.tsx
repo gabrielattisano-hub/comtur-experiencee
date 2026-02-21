@@ -97,9 +97,9 @@ export default function PacoteDetalhePage() {
               </div>
             ) : null}
 
-            {pacote.linkWhatsApp ? (
+            {pacote.linkWhats ? (
               <a
-                href={pacote.linkWhatsApp}
+                href={pacote.linkWhats}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-block bg-white text-black px-4 py-2 rounded-lg text-sm font-medium"
