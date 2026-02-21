@@ -1,50 +1,44 @@
-export type Pacote = {
-  id: string;
-  titulo: string;
-  subtitulo?: string;
-  dias?: number;
-  inclui?: string[];
-  naoInclui?: string[];
-  preco?: number; // opcional (modo demo)
-  moeda?: "BRL" | "USD";
-  imagem?: string; // ex: "/images/hero.jpg"
-  destaque?: boolean;
+export type Preferencias = {
+  nome?: string;
+  cidadeBase?: string; // ex: "Londrina - PR"
+  estiloViagem?: "familia" | "casal" | "solo" | "amigos";
+  interesses?: string[]; // ex: ["parques", "praia", "gastronomia"]
+  orcamento?: "economico" | "medio" | "premium";
 };
 
+const KEY = "comtur_preferencias_v1";
+
 /**
- * Lista DEMO: Pacotes para famílias saindo de Londrina (PR)
- * Ajuste os textos/valores como quiser.
+ * Lê as preferências do usuário (localStorage).
+ * Retorna {} se não existir ou se estiver no servidor.
  */
-export const pacotesLondrinaFamilias: Pacote[] = [
-  {
-    id: "olimpia-family-3d",
-    titulo: "Olímpia (Thermas) -- Família",
-    subtitulo: "3 dias / 2 noites • ideal com crianças",
-    dias: 3,
-    inclui: ["Hospedagem", "Sugestão de roteiro", "Dicas para família"],
-    naoInclui: ["Ingressos (quando aplicável)", "Alimentação"],
-    moeda: "BRL",
-    imagem: "/images/hero.jpg",
-    destaque: true,
-  },
-  {
-    id: "foz-family-4d",
-    titulo: "Foz do Iguaçu -- Família",
-    subtitulo: "4 dias / 3 noites • cataratas + passeios",
-    dias: 4,
-    inclui: ["Hospedagem", "Sugestão de roteiro", "Dicas de deslocamento"],
-    naoInclui: ["Ingressos", "Alimentação"],
-    moeda: "BRL",
-    imagem: "/images/hero.jpg",
-  },
-  {
-    id: "curitiba-family-2d",
-    titulo: "Curitiba -- Família",
-    subtitulo: "2 dias • bate-volta estendido",
-    dias: 2,
-    inclui: ["Roteiro", "Sugestões de restaurantes family-friendly"],
-    naoInclui: ["Transporte", "Alimentação"],
-    moeda: "BRL",
-    imagem: "/images/hero.jpg",
-  },
-];
+export function getPreferencias(): Preferencias {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? (parsed as Preferencias) : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Salva preferências (merge): mantém o que já existe e atualiza com o que vier.
+ */
+export function savePreferencias(next: Preferencias): Preferencias {
+  if (typeof window === "undefined") return next;
+  const current = getPreferencias();
+  const merged = { ...current, ...next };
+  localStorage.setItem(KEY, JSON.stringify(merged));
+  return merged;
+}
+
+/**
+ * Limpa preferências salvas.
+ */
+export function clearPreferencias() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(KEY);
+}
