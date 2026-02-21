@@ -1,20 +1,19 @@
-export const dynamic = "force-dynamic";
-
 "use client";
 
-import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
-function MapaConteudo() {
-  const searchParams = useSearchParams();
+export default function MapaPage() {
+  const [query, setQuery] = useState("Londrina PR");
 
-  const lat = searchParams.get("lat");
-  const lng = searchParams.get("lng");
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const lat = params.get("lat");
+    const lng = params.get("lng");
 
-  const query =
-    lat && lng
-      ? `${lat},${lng}`
-      : "Londrina PR";
+    if (lat && lng) {
+      setQuery(`${lat},${lng}`);
+    }
+  }, []);
 
   const src = `https://www.google.com/maps?q=${encodeURIComponent(
     query
@@ -35,13 +34,5 @@ function MapaConteudo() {
         />
       </div>
     </main>
-  );
-}
-
-export default function MapaPage() {
-  return (
-    <Suspense fallback={<div>Carregando mapa...</div>}>
-      <MapaConteudo />
-    </Suspense>
   );
 }
