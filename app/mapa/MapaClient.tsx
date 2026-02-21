@@ -1,3 +1,4 @@
+// app/mapa/MapaClient.tsx
 "use client";
 
 import { useSearchParams } from "next/navigation";
@@ -15,15 +16,19 @@ export default function MapaClient() {
   )}&output=embed`;
 
   return (
-    <div style={{ height: "70vh", borderRadius: 12, overflow: "hidden" }}>
-      <iframe
-        title="Mapa"
-        src={src}
-        width="100%"
-        height="100%"
-        loading="lazy"
-        style={{ border: 0 }}
-      />
-    </div>
+    <main style={{ padding: 16 }}>
+      <h1>Mapa</h1>
+
+      <div style={{ height: "70vh", borderRadius: 12, overflow: "hidden" }}>
+        <iframe
+          title="Mapa"
+          src={src}
+          width="100%"
+          height="100%"
+          loading="lazy"
+          style={{ border: 0 }}
+        />
+      </div>
+    </main>
   );
 }
