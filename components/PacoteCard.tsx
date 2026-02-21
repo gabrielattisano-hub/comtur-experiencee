@@ -1,7 +1,8 @@
-import { Pacote } from "../lib/pacotes";
-
-type Props = Pacote & {
-  onComprar: () => void;
+type Props = {
+  titulo: string;
+  descricao?: string;
+  preco?: string;
+  onComprar?: () => void;
 };
 
 export default function PacoteCard({
@@ -11,17 +12,27 @@ export default function PacoteCard({
   onComprar,
 }: Props) {
   return (
-    <div className="p-4 rounded-2xl bg-white text-blue-900 shadow-lg">
-      <h2 className="font-bold text-lg">{titulo}</h2>
-      <p className="text-sm">{descricao}</p>
-      <p className="mt-2 font-semibold">{preco}</p>
+    <div className="p-6 rounded-xl border border-zinc-800 bg-zinc-900 space-y-3">
+      <h2 className="text-xl font-semibold">{titulo}</h2>
 
-      <button
-        onClick={onComprar}
-        className="mt-3 w-full bg-blue-900 text-white py-2 rounded-xl"
-      >
-        Comprar agora
-      </button>
+      {descricao && (
+        <p className="text-zinc-400 text-sm">{descricao}</p>
+      )}
+
+      {preco && (
+        <p className="text-zinc-300 text-sm font-medium">
+          💰 {preco}
+        </p>
+      )}
+
+      {onComprar && (
+        <button
+          onClick={onComprar}
+          className="bg-white text-black px-4 py-2 rounded-lg text-sm font-medium"
+        >
+          Comprar
+        </button>
+      )}
     </div>
   );
 }
