@@ -1,11 +1,8 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
-import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
-function MapaConteudo() {
+export default function MapaClient() {
   const searchParams = useSearchParams();
 
   const lat = searchParams.get("lat");
@@ -18,27 +15,15 @@ function MapaConteudo() {
   )}&output=embed`;
 
   return (
-    <main style={{ padding: 16 }}>
-      <h1>Mapa</h1>
-
-      <div style={{ height: "70vh", borderRadius: 12, overflow: "hidden" }}>
-        <iframe
-          title="Mapa"
-          src={src}
-          width="100%"
-          height="100%"
-          loading="lazy"
-          style={{ border: 0 }}
-        />
-      </div>
-    </main>
-  );
-}
-
-export default function MapaPage() {
-  return (
-    <Suspense fallback={<div style={{ padding: 16 }}>Carregando mapa...</div>}>
-      <MapaConteudo />
-    </Suspense>
+    <div style={{ height: "70vh", borderRadius: 12, overflow: "hidden" }}>
+      <iframe
+        title="Mapa"
+        src={src}
+        width="100%"
+        height="100%"
+        loading="lazy"
+        style={{ border: 0 }}
+      />
+    </div>
   );
 }
