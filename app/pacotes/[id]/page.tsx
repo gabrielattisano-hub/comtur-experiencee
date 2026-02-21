@@ -22,11 +22,9 @@ export default function PacoteDetalhePage() {
   const pacote = useMemo(() => {
     if (!id) return null;
 
-    // tenta achar por id direto
     const byId = pacotesLondrinaFamilias.find((p) => p.id === id);
     if (byId) return byId;
 
-    // fallback: tenta achar por slug do título (se você usar slug na URL)
     const bySlug = pacotesLondrinaFamilias.find(
       (p) => slugify(p.titulo) === id
     );
@@ -36,7 +34,7 @@ export default function PacoteDetalhePage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <Topbar />
+      <Topbar title="Detalhe do pacote" />
 
       <div className="max-w-3xl mx-auto px-4 py-10 space-y-6">
         <Link href="/pacotes" className="text-sm text-zinc-300 underline">
